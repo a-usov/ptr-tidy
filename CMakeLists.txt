@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.17)
 project(Project VERSION 1.0 LANGUAGES CXX)
 
 find_package(Clang PATHS "${LLVM_ROOT}/lib/cmake")
