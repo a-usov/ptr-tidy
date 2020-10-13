@@ -1,4 +1,6 @@
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Tooling/Tooling.h"
@@ -9,18 +11,31 @@ using namespace clang::tooling;
 using namespace clang::ast_matchers;
 
 class DumpCallback : public MatchFinder::MatchCallback {
+public:
+	int m_count = 0;
+
 	virtual void run(const MatchFinder::MatchResult &Result) {
 		llvm::errs() << "---\n";
-		Result.Nodes.getNodeAs<CXXRecordDecl>("x")->dump();
+		Result.Nodes.getNodeAs<DeclRefExpr>("")->dump();
+
+		if (Result.Nodes.getNodeAs<DeclRefExpr>("")->getDecl()->getType()->isPointerType()) {
+		m_count++;
+		}
 	}
 };
 
 int main() {
-	std::cout << "Hello world" << std::endl;
+	auto ss = std::ostringstream{};
+	std::ifstream file("../ptr.cpp");
+	ss << file.rdbuf();
+	auto str = ss.str();
+
+	std::cout << str << std::endl;
 
 	DumpCallback Callback;
 	MatchFinder Finder;
-	Finder.addMatcher(recordDecl().bind("x"), &Callback);
+	Finder.addMatcher(declRefExpr().bind(""), &Callback);
 	std::unique_ptr<FrontendActionFactory> Factory(newFrontendActionFactory(&Finder));
-	clang::tooling::runToolOnCode(Factory->create(), "class X {};");
+	clang::tooling::runToolOnCode(Factory->create(), str);
+	std::cout << "Number of pointer dereferences is " << Callback.m_count << std::endl;
 }
