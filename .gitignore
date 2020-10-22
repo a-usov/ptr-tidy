@@ -33,3 +33,7 @@
 
 # Build Directories
 build*/
+cmake-build*/
+
+# Jetbrains
+.idea/
