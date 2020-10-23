@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.17)
 project(Ptr-Tidy VERSION 1.0 LANGUAGES CXX)
 
+# So that GitHub build finds the latest installed version of clang/llvm libs
+SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
+
 find_package(Clang PATHS "${LLVM_ROOT}/lib/cmake")
 
 add_executable(ptr-tidy main.cpp)
