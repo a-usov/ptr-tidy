@@ -5,9 +5,9 @@ int main() {
 }
 
 int *asd() {
-  int a;
+  int foo;
   int c = 4;
-  a = 2 + c;
-  int *b = &a;
+  foo = 2 + c;
+  int *b = &foo;
   return b;
 }
