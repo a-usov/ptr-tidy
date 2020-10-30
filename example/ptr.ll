@@ -7,13 +7,17 @@ target triple = "x86_64-unknown-linux-gnu"
 define i32 @main() #0 {
 entry:
   %a = alloca i32, align 4
+  %d = alloca i32, align 4
   %b = alloca i32*, align 8
+  %e = alloca i32*, align 8
   %c = alloca i32, align 4
   store i32 2, i32* %a, align 4
+  store i32 4, i32* %d, align 4
   store i32* %a, i32** %b, align 8
+  store i32* %d, i32** %e, align 8
   %0 = load i32*, i32** %b, align 8
   %1 = load i32, i32* %0, align 4
-  %2 = load i32*, i32** %b, align 8
+  %2 = load i32*, i32** %e, align 8
   %3 = load i32, i32* %2, align 4
   %add = add nsw i32 %1, %3
   store i32 %add, i32* %c, align 4
@@ -24,14 +28,14 @@ entry:
 define i32* @_Z3asdv() #1 {
 entry:
   %foo = alloca i32, align 4
-  %c = alloca i32, align 4
-  %b = alloca i32*, align 8
-  store i32 4, i32* %c, align 4
-  %0 = load i32, i32* %c, align 4
+  %bar = alloca i32, align 4
+  %foobar = alloca i32*, align 8
+  store i32 4, i32* %bar, align 4
+  %0 = load i32, i32* %bar, align 4
   %add = add nsw i32 2, %0
   store i32 %add, i32* %foo, align 4
-  store i32* %foo, i32** %b, align 8
-  %1 = load i32*, i32** %b, align 8
+  store i32* %foo, i32** %foobar, align 8
+  %1 = load i32*, i32** %foobar, align 8
   ret i32* %1
 }
 
@@ -42,4 +46,4 @@ attributes #1 = { noinline nounwind optnone "correctly-rounded-divide-sqrt-fp-ma
 !llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{!"clang version 11.0.0 (https://github.com/llvm/llvm-project.git 176249bd6732a8044d457092ed932768724a6f06)"}
+!1 = !{!"clang version 11.0.1 (https://github.com/llvm/llvm-project.git b59b6b662bb987955f1516c9a47e96c7ab443ac6)"}

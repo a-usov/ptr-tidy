@@ -1,13 +1,15 @@
 int main() {
   int a = 2;
+  int d = 4;
   int *b = &a;
-  int c = *b + *b;
+  int *e= &d;
+  int c = *b + *e;
 }
 
 int *asd() {
   int foo;
-  int c = 4;
-  foo = 2 + c;
-  int *b = &foo;
-  return b;
+  int bar = 4;
+  foo = 2 + bar;
+  int *foobar = &foo;
+  return foobar;
 }
