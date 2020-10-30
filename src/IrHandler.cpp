@@ -3,7 +3,7 @@
 IrHandler::IrHandler(const llvm::MemoryBufferRef &moduleContent) {
   llvm::SMDiagnostic error;
 
-  m_module = parseIR(moduleContent, error, context);
+  m_module = parseIR(moduleContent, error, m_context);
 }
 
 boost::optional<llvm::Module &> IrHandler::getModule() const {

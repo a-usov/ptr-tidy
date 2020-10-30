@@ -1,6 +1,5 @@
 #include "Callback.h"
 
-#include "clang/AST/Decl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/TargetCXXABI.h"
 #include "llvm/Analysis/CaptureTracking.h"

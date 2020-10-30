@@ -7,7 +7,7 @@
 #include "llvm/Support/SourceMgr.h"
 
 class IrHandler {
-  llvm::LLVMContext context;
+  llvm::LLVMContext m_context;
   std::unique_ptr<llvm::Module> m_module;
 
 public:

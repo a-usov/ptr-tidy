@@ -1,6 +1,5 @@
 #include "AstHandler.h"
 #include "Callback.h"
-#include "IrHandler.h"
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
