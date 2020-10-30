@@ -1,9 +1,24 @@
 #include "IrHandler.h"
 
-IrHandler::IrHandler(const llvm::MemoryBufferRef &moduleContent) {
-  llvm::SMDiagnostic error;
+#include "clang/CodeGen/CodeGenAction.h"
+#include "clang/Frontend/CompilerInstance.h"
 
-  m_module = parseIR(moduleContent, error, m_context);
+using namespace clang;
+using namespace llvm;
+
+IrHandler::IrHandler(const std::string& codePath) {
+  CompilerInstance Clang;
+  Clang.createDiagnostics();
+
+  std::vector<const char *> args{"-triple=x86_64-unknown-linux-gnu"};
+  args.push_back(codePath.c_str());
+  CompilerInvocation::CreateFromArgs(Clang.getInvocation(), makeArrayRef(args),
+                                     Clang.getDiagnostics());
+
+  EmitLLVMOnlyAction action(&m_context);
+  Clang.ExecuteAction(action);
+
+  m_module = action.takeModule();
 }
 
 boost::optional<llvm::Module &> IrHandler::getModule() const {

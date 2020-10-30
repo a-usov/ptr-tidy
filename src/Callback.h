@@ -9,7 +9,7 @@ class CountCallback : public clang::ast_matchers::MatchFinder::MatchCallback {
   IrHandler m_irHandler;
 
 public:
-  explicit CountCallback(const llvm::MemoryBufferRef irFile) : m_irHandler(irFile){};
+  explicit CountCallback(const std::string& codePath) : m_irHandler(codePath){};
 
   void run(const clang::ast_matchers::MatchFinder::MatchResult &result) override;
 };

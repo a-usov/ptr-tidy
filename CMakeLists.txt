@@ -14,7 +14,7 @@ find_package(Clang PATHS "${LLVM_ROOT}/lib/cmake" REQUIRED)
 find_package(Boost REQUIRED)
 
 set(LLVM_LIBS Analysis Core IRReader)
-set(CLANG_LIBS clangASTMatchers clangTooling)
+set(CLANG_LIBS clangASTMatchers clangTooling clangCodeGen)
 
 # On certain distros, clang uses shared lib even if llvm uses static libs.
 # So if we detect clang uses shared lib, link llvm against shared lib too

@@ -13,9 +13,3 @@ int *asd() {
   int *foobar = &foo;
   return foobar;
 }
-
-int *test2() {
-  int* random = new int;
-  *random = 2;
-  return random;
-}

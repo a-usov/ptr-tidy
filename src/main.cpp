@@ -2,7 +2,7 @@
 #include "Callback.h"
 
 int main(int argc, char *argv[]) {
-  if (argc != 3) {
+  if (argc != 2) {
     return -1;
   }
 
@@ -11,11 +11,6 @@ int main(int argc, char *argv[]) {
     return sourceFileOrError.getError().value();
   }
 
-  auto irFileOrError = llvm::MemoryBuffer::getFile(argv[2]);
-  if (!irFileOrError) {
-    return irFileOrError.getError().value();
-  }
-
-  CountCallback callback{irFileOrError.get()->getMemBufferRef()};
+  CountCallback callback(argv[1]);
   AstHandler::runCallback(callback, sourceFileOrError.get()->getBuffer());
 }
