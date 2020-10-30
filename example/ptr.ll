@@ -39,8 +39,26 @@ entry:
   ret i32* %1
 }
 
+; Function Attrs: noinline nounwind optnone
+define i32* @_Z5test2v() #1 {
+entry:
+  %random = alloca i32*, align 8
+  %call = call noalias nonnull i8* @_Znwm(i64 4) #3
+  %0 = bitcast i8* %call to i32*
+  store i32* %0, i32** %random, align 8
+  %1 = load i32*, i32** %random, align 8
+  store i32 2, i32* %1, align 4
+  %2 = load i32*, i32** %random, align 8
+  ret i32* %2
+}
+
+; Function Attrs: nobuiltin allocsize(0)
+declare nonnull i8* @_Znwm(i64) #2
+
 attributes #0 = { noinline norecurse nounwind optnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-features"="+cx8,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { noinline nounwind optnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-features"="+cx8,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { nobuiltin allocsize(0) "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-features"="+cx8,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #3 = { builtin allocsize(0) }
 
 !llvm.module.flags = !{!0}
 !llvm.ident = !{!1}
