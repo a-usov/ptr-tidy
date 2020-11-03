@@ -19,7 +19,6 @@ class Value;
 class Use;
 class DataLayout;
 class Instruction;
-class DominatorTree;
 
 /// getDefaultMaxUsesToExploreForCaptureTracking - Return default value of
 /// the maximal number of uses to explore before giving up. It is used by
@@ -40,23 +39,6 @@ bool PointerMayBeCaptured(const Value *V, bool ReturnCaptures,
                           bool StoreCaptures,
                           unsigned MaxUsesToExplore = 0);
 
-/// PointerMayBeCapturedBefore - Return true if this pointer value may be
-/// captured by the enclosing function (which is required to exist). If a
-/// DominatorTree is provided, only captures which happen before the given
-/// instruction are considered. This routine can be expensive, so consider
-/// caching the results.  The boolean ReturnCaptures specifies whether
-/// returning the value (or part of it) from the function counts as capturing
-/// it or not.  The boolean StoreCaptures specified whether storing the value
-/// (or part of it) into memory anywhere automatically counts as capturing it
-/// or not. Captures by the provided instruction are considered if the
-/// final parameter is true.
-/// MaxUsesToExplore specifies how many uses the analysis should explore for
-/// one value before giving up due too "too many uses". If MaxUsesToExplore
-/// is zero, a default value is assumed.
-bool PointerMayBeCapturedBefore(
-    const Value *V, bool ReturnCaptures, bool StoreCaptures,
-    const Instruction *I, const DominatorTree *DT, bool IncludeI = false,
-    unsigned MaxUsesToExplore = 0);
 
 /// This callback is used in conjunction with PointerMayBeCaptured. In
 /// addition to the interface here, you'll need to provide your own getters

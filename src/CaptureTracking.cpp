@@ -19,10 +19,8 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Support/CommandLine.h"
@@ -41,7 +39,7 @@ static cl::opt<unsigned> DefaultMaxUsesToExplore("capture-tracking-max-uses-to-e
 
 unsigned llvm::getDefaultMaxUsesToExploreForCaptureTracking() { return DefaultMaxUsesToExplore; }
 
-CaptureTracker::~CaptureTracker() {}
+CaptureTracker::~CaptureTracker() = default;
 
 bool CaptureTracker::shouldExplore(const Use *U) { return true; }
 
@@ -132,7 +130,7 @@ void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker,
 
   while (!Worklist.empty()) {
     const Use *U = Worklist.pop_back_val();
-    Instruction *I = cast<Instruction>(U->getUser());
+    auto *I = cast<Instruction>(U->getUser());
     V = U->get();
 
     switch (I->getOpcode()) {
