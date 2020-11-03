@@ -1,8 +1,11 @@
 int a = 0;
 
-int main() {}
-
-int *test() {
-  int *b = &a;
+int *test(int *b) {
+  a = *b;
   return b;
+}
+
+int main() {
+  int b = 2;
+  test(&b);
 }
