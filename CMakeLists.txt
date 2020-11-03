@@ -13,7 +13,7 @@ SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
 find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
 
-add_executable(ptr-tidy src/main.cpp src/Callback.cpp src/IrHandler.cpp src/AstHandler.cpp)
+add_executable(ptr-tidy src/main.cpp src/Callback.cpp src/IrHandler.cpp src/AstHandler.cpp src/CaptureTracking.cpp)
 
 add_subdirectory(test)
 

@@ -1,7 +1,7 @@
 #include "Callback.h"
 
 #include "clang/AST/Mangle.h"
-#include "llvm/Analysis/CaptureTracking.h"
+#include "CaptureTracking.h"
 #include "llvm/IR/ValueSymbolTable.h"
 
 #include "Helper.h"

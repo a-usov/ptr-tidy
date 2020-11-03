@@ -26,6 +26,8 @@ IrHandler::IrHandler(const llvm::StringRef codePath) {
   Clang.ExecuteAction(action);
 
   m_module = action.takeModule();
+
+  errs() << *m_module;
 }
 
 boost::optional<llvm::Module &> IrHandler::getModule() const {
