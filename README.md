@@ -1,20 +1,23 @@
 # ptr-tidy
 
-## Building 
+## Building on Linux
 
-First build and install llvm
+#### First install clang, llvm and other dependancies. This will depend on your distribution.
 
-```
-mkdir llvm
-git clone https://github.com/llvm/llvm-project.git
-cmake -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=llvm -G Ninja -B llvm-project/build -S llvm-project
-cmake --build llvm-project/build --target install 
+##### Arch
+```sh
+pacman -S clang llvm gtest boost
 ```
 
-Then to build ptr-tidy
+##### Ubuntu
+```sh
+apt-get install clang libclang-dev libboost-dev libgtest-dev
+```
 
-````
+#### Then to build ptr-tidy
+
+```sh
 git clone https://github.com/a-usov/ptr-tidy.git
-cmake -DLLVM_ROOT=llvm -B ptr-tidy/build -S ptr-tidy
+cmake -B ptr-tidy/build -S ptr-tidy
 cmake --build ptr-tidy/build
 ```
