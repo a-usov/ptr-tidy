@@ -1,15 +1,8 @@
-int main() {
-  int a = 2;
-  int d = 4;
-  int *b = &a;
-  int *e= &d;
-  int c = *b + *e;
-}
+int a = 0;
 
-int *asd() {
-  int foo;
-  int bar = 4;
-  foo = 2 + bar;
-  int *foobar = &foo;
-  return foobar;
+int main() {}
+
+int *test() {
+  int *b = &a;
+  return b;
 }

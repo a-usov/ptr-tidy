@@ -3,7 +3,7 @@
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
 
-void AstHandler::runCallback(MatchFinder::MatchCallback &callback, llvm::StringRef code) {
+void AstHandler::runCallback(MatchFinder::MatchCallback &callback, const llvm::StringRef code) {
   MatchFinder Finder;
 
   Finder.addMatcher(varDecl().bind(""), &callback);

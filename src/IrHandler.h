@@ -11,7 +11,7 @@ class IrHandler {
   std::unique_ptr<llvm::Module> m_module;
 
 public:
-  explicit IrHandler(const std::string& codePath);
+  explicit IrHandler(llvm::StringRef codePath);
 
   [[nodiscard]] boost::optional<llvm::Module &> getModule() const;
 };

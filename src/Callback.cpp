@@ -1,46 +1,41 @@
 #include "Callback.h"
 
 #include "clang/AST/Mangle.h"
-#include "clang/Basic/TargetCXXABI.h"
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/IR/ValueSymbolTable.h"
+
+#include "Helper.h"
 
 using namespace llvm;
 using namespace clang;
 using namespace clang::ast_matchers;
 
 void CountCallback::run(const MatchFinder::MatchResult &result) {
-  if (auto *var = result.Nodes.getNodeAs<VarDecl>(""); var) {
-    auto *parentFunction = dyn_cast<FunctionDecl>(var->getParentFunctionOrMethod());
+  auto *var = result.Nodes.getNodeAs<VarDecl>("");
+  if (!var) {
+    exit("Encountered not a VarDecl");
+  }
 
-    if (auto moduleOpt = m_irHandler.getModule(); moduleOpt) {
-      auto &module = moduleOpt.get();
-      auto *mangler = result.Context->createMangleContext(&result.Context->getTargetInfo());
+  if (var->hasGlobalStorage()) {
+    errs() << var->getSourceRange().printToString(*result.SourceManager)
+           << " Not processing global variable " << var->getName() << "\n";
+    return;
+  }
 
-      Function *func;
+  auto moduleOpt = m_irHandler.getModule();
+  if (!moduleOpt) {
+    exit("Could not get IR module");
+  }
+  auto &module = moduleOpt.get();
 
-      if (mangler->shouldMangleDeclName(parentFunction)) {
-        std::string parentFunctionMangled;
-        {
-          raw_string_ostream mangledNameStream(parentFunctionMangled);
-          mangler->mangleName(parentFunction, mangledNameStream);
-          mangledNameStream.flush();
-        }
-        func = module.getFunction(parentFunctionMangled);
-      } else {
-        func = module.getFunction(parentFunction->getName());
-      }
+  Value *value = getLocalValue(var, module, result.Context);
 
-      auto *valueSymbol = func->getValueSymbolTable();
-      auto *value = valueSymbol->lookup(var->getName());
-
-      auto isCaptured = PointerMayBeCaptured(value, true, true);
-      errs() << "Variable " << var->getName() << " in function " << parentFunction->getName();
-      if (isCaptured) {
-        errs() << " is captured\n";
-      } else {
-        errs() << " is not captured\n";
-      }
-    }
+  auto isCaptured = PointerMayBeCaptured(value, true, true);
+  errs() << var->getSourceRange().printToString(*result.SourceManager) << " Variable "
+         << var->getName();
+  if (isCaptured) {
+    errs() << " is captured\n";
+  } else {
+    errs() << " is not captured\n";
   }
 }

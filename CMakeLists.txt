@@ -10,20 +10,8 @@ endif ()
 SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
 
-find_package(Clang PATHS "${LLVM_ROOT}/lib/cmake" REQUIRED)
+find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
-
-set(LLVM_LIBS Analysis Core IRReader)
-set(CLANG_LIBS clangASTMatchers clangTooling clangCodeGen)
-
-# On certain distros, clang uses shared lib even if llvm uses static libs.
-# So if we detect clang uses shared lib, link llvm against shared lib too
-get_target_property(CLANG_LINKS_STATIC clangBasic INTERFACE_LINK_LIBRARIES)
-if ("LLVM" IN_LIST CLANG_LINKS_STATIC)
-    set(USE_SHARED "USE_SHARED")
-else ()
-    set(USE_SHARED "")
-endif ()
 
 add_executable(ptr-tidy src/main.cpp src/Callback.cpp src/IrHandler.cpp src/AstHandler.cpp)
 
@@ -34,6 +22,5 @@ foreach (target IN ITEMS ptr-tidy runTests)
     target_compile_definitions("${target}" PUBLIC ${LLVM_DEFINITIONS})
     target_compile_options("${target}" PUBLIC "-fno-rtti" "-fno-exceptions" PRIVATE "-Wall" "-Wextra" "-Wpedantic" "-Wno-unused-parameter")
     target_include_directories("${target}" PUBLIC "${CLANG_INCLUDE_DIRS}" "${Boost_INCLUDE_DIRS}")
-    target_link_libraries("${target}" PUBLIC "${CLANG_LIBS}")
-    llvm_config("${target}" "${USE_SHARED}" "${LLVM_LIBS}")
+    target_link_libraries("${target}" PUBLIC clang-cpp LLVM)
 endforeach ()
