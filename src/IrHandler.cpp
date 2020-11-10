@@ -3,6 +3,7 @@
 
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "llvm/Support/Host.h"
 
 using namespace clang;
 using namespace llvm;

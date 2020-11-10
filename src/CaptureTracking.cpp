@@ -33,11 +33,7 @@ using namespace llvm;
 /// TODO: we should probably introduce a caching CaptureTracking analysis and
 /// use it where possible. The caching version can use much higher limit or
 /// don't have this cap at all.
-static cl::opt<unsigned> DefaultMaxUsesToExplore("capture-tracking-max-uses-to-explore", cl::Hidden,
-                                                 cl::desc("Maximal number of uses to explore."),
-                                                 cl::init(20));
-
-unsigned llvm::getDefaultMaxUsesToExploreForCaptureTracking() { return DefaultMaxUsesToExplore; }
+unsigned llvm::getDefaultMaxUsesToExploreForCaptureTracking() { return 20; }
 
 CaptureTracker::~CaptureTracker() = default;
 
@@ -106,7 +102,7 @@ void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker,
                                 unsigned MaxUsesToExplore) {
   assert(V->getType()->isPointerTy() && "Capture is for pointers only!");
   if (MaxUsesToExplore == 0)
-    MaxUsesToExplore = DefaultMaxUsesToExplore;
+    MaxUsesToExplore = getDefaultMaxUsesToExploreForCaptureTracking();
 
   SmallVector<const Use *, 20> Worklist;
   Worklist.reserve(getDefaultMaxUsesToExploreForCaptureTracking());
