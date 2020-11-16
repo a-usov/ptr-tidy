@@ -1,10 +1,17 @@
 \documentclass{proposal}
 \usepackage{graphicx}
+\usepackage[square,numbers]{natbib}
+\usepackage{listing}
+\usepackage{chngcntr}
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
 
 \begin{document}
 
+    \counterwithin{listing}{section}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     \title{ptr-tidy: Automatic refactoring of raw pointers in C++}
@@ -15,28 +22,94 @@
     \newpage
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     \section{Introduction}\label{sec:intro}
 
-    Briefly explain the context of the project problem.
+    \subsection{Difficulties with Memory Management}\label{subsec:difficulties-with-memory-management}
 
-    \subsection{A subsection}\label{subsec:a-subsection}
-    Please note your proposal need not follow the included section headings - this is only a suggested structure.
-    Also add subsections etc as required.
+    % TODO insert info about what memory management/errors are
+
+    Correct memory management is a difficult problem.
+
+    \emph{How difficult one might ask?}
+
+    In a presentation by Matt Miller, a security engineer at Microsoft~\cite{Miller2019}, it is shown that around 70\% of vulnerabilities that are addressed through a security updates are due to memory safety issues.
+    This is at an industry-leading company who are renowned for hiring top talent.
+    Such memory safety vulnerabilities can be exploited, and due to new regulations such as the GDPR, these issues are more commonly exposed to the general public and punished by regulators.
+    Such an example is a fine of £20m fine for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}.
+
+    \subsection{Possible Solutions to Memory Management}\label{subsec:possible-solutions-to-memory-management}
+
+    Memory safety errors occur when languages are used that place the tasks of memory management with the programmer, such as C and C++.
+    However simply not using these languages is not an option since their inherent danger makes them highly performant, and therefore the only option for a project such as a web browser.
+
+    \emph{What can be done then to address this issue?}
+
+    % TODO add Rust performance benchmark reference
+
+    Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
+    Rust is a systems language that offers the same performance as C and C++, however its linear type system and memory ownership model also guarantee memory safety.
+    The rewriting of a program in a new language is a colossal undertaking, especially in language that has a reputation for being difficult to learn.
+    We therefore propose an alternative partial solution to this problem.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     \section{Statement of Problem}\label{sec:statement-of-problem}
 
-    Clearly state the problem to be addressed in your forthcoming project.
-    Explain why it would be worthwhile to solve this problem.
+    \subsection{Using Smart Pointers for Memory Management}\label{subsec:using-smart-pointers-for-memory-management}
+
+    Generally pointers are used to give the program access to a resource that cannot be directly included in the program itself, such as a file or a thread.
+    However Stroustrup claims that pointers to objects allocated on the free store is dangerous and a 'plain old pointer', or raw pointer as we will refer to them, should not be used to represent ownership~\cite{Stroustrup2018}.
+
+    \begin{listing}
+        \begin{verbatim}
+            void foo(int x) {
+                Shape *p = new Circle{Point{0,0},10};
+                // ...
+                if (x<0) throw Bad_x{}; // potential leak
+                if (x==0) return; // potential leak
+                // ...
+                delete p;
+            }
+        \end{verbatim}
+        \caption{Example of memory leaks using manual management.}
+        \label{fig:manual-leak}
+    \end{listing}
+
+    In \autoref{fig:manual-leak} we can see that when using a raw pointer, there are two cases in which the programmer will never free the allocated memory.
+    Instead we can \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)} to create resource handles which automatically eliminate resource leaks with no added overhead.
+    The equivalent code using \emph{unique pointers} can be seen in \autoref{fig:first-example-unique}.
+    In the comments, we can see all the locations where \emph{p} exits the scope of the function and where the compiler will insert delete statements, now ensuring that the resource will never get leaked.
+
+    \begin{listing}
+        \begin{verbatim}
+            void foo(int x) {
+                auto p = std::make_unique<Circle>(Point{0,0},10);
+                // ...
+                if (x<0) throw Bad_x{}; // delete p inserted here
+                if (x==0) return; // delete p inserted here
+                // ...
+                // delete p inserted here
+            }
+        \end{verbatim}
+        \caption{Example of using a unique pointer to manage memory.}
+        \label{fig:first-example-unique}
+    \end{listing}
+
+    There also exists a \emph{shared pointer} for resources which may not have a single unique owner.
+    Reference counting is used to ensure that after the last owner loses access to the resource, it will finally be freed.
+    Shared pointers are suitable to be used in most situations, except in structures which have cyclic references \autoref{}.
+
+    % TODO add reference of cycle analysis further in paper
+
+    \subsection{Do Smart Pointer Solve Memory Management?}\label{subsec:do-smart-pointer-solve-memory-management?}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     \section{Background Survey}\label{sec:background-survey}
@@ -45,7 +118,7 @@
     Critically evaluate the strengths and weaknesses of the previous work.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     \section{Proposed Approach}\label{sec:proposed-approach}
@@ -54,7 +127,7 @@
     Show that your proposed approach is feasible, but identify any risks.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     \section{Work Plan}\label{sec:work-plan}
@@ -62,9 +135,9 @@
     Show how you plan to organize your work, identifying intermediate deliverables and dates.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-    \bibliographystyle{plain}
+    \bibliographystyle{plainnat}
     \bibliography{proposal}
 \end{document}
