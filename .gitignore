@@ -1,4 +1,5 @@
 .idea/
+_minted-proposal/
 
 *.out
 *.aux
@@ -10,3 +11,4 @@
 *.pdf
 *.synctex.gz
 *.toc
+*.pyg

@@ -2,9 +2,12 @@
 \usepackage{graphicx}
 \usepackage[square,numbers]{natbib}
 \usepackage{listing}
+\usepackage{minted}
 \usepackage{chngcntr}
 \usepackage[hyphens]{url}
 \usepackage{hyperref}
+
+\setminted{frame=lines, linenos, autogobble}
 
 \begin{document}
 
@@ -48,11 +51,10 @@
     \emph{What can be done then to address this issue?}
 
     % TODO add Rust performance benchmark reference
-
     Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
-    Rust is a systems language that offers the same performance as C and C++, however its linear type system and memory ownership model also guarantee memory safety.
+    Rust is a systems language that offers the same performance as C and C++~\cite{RustBenchmark}, however its linear type system and memory ownership model also guarantee memory safety.
     The rewriting of a program in a new language is a colossal undertaking, especially in language that has a reputation for being difficult to learn.
-    We therefore propose an alternative partial solution to this problem.
+    We therefore propose an alternative partial solution to this problem by using a concept from Rust.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,50 +65,50 @@
     \subsection{Using Smart Pointers for Memory Management}\label{subsec:using-smart-pointers-for-memory-management}
 
     Generally pointers are used to give the program access to a resource that cannot be directly included in the program itself, such as a file or a thread.
-    However Stroustrup claims that pointers to objects allocated on the free store is dangerous and a 'plain old pointer', or raw pointer as we will refer to them, should not be used to represent ownership~\cite{Stroustrup2018}.
+    However Stroustrup claims that pointers to objects allocated on the free store is dangerous and a \emph{plain old pointer}, or raw pointer as we will refer to them, should not be used to represent ownership~\cite{Stroustrup2018}.
 
     \begin{listing}
-        \begin{verbatim}
-            void foo(int x) {
-                Shape *p = new Circle{Point{0,0},10};
-                // ...
-                if (x<0) throw Bad_x{}; // potential leak
-                if (x==0) return; // potential leak
-                // ...
-                delete p;
-            }
-        \end{verbatim}
+        \inputminted{c++}{code/manual-leak.cpp}
         \caption{Example of memory leaks using manual management.}
-        \label{fig:manual-leak}
+        \label{lst:manual-leak}
     \end{listing}
 
-    In \autoref{fig:manual-leak} we can see that when using a raw pointer, there are two cases in which the programmer will never free the allocated memory.
+    In \autoref{lst:manual-leak} we can see that when using a raw pointer, there are two cases in which the programmer will never free the allocated memory.
     Instead we can \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)} to create resource handles which automatically eliminate resource leaks with no added overhead.
-    The equivalent code using \emph{unique pointers} can be seen in \autoref{fig:first-example-unique}.
+    The equivalent code using \emph{unique pointers} can be seen in \autoref{lst:first-example-unique}.
     In the comments, we can see all the locations where \emph{p} exits the scope of the function and where the compiler will insert delete statements, now ensuring that the resource will never get leaked.
 
     \begin{listing}
-        \begin{verbatim}
-            void foo(int x) {
-                auto p = std::make_unique<Circle>(Point{0,0},10);
-                // ...
-                if (x<0) throw Bad_x{}; // delete p inserted here
-                if (x==0) return; // delete p inserted here
-                // ...
-                // delete p inserted here
-            }
-        \end{verbatim}
+        \inputminted{c++}{code/first-example-unique.cpp}
         \caption{Example of using a unique pointer to manage memory.}
-        \label{fig:first-example-unique}
+        \label{lst:first-example-unique}
     \end{listing}
 
+    % TODO add reference of cycle analysis further in paper
     There also exists a \emph{shared pointer} for resources which may not have a single unique owner.
     Reference counting is used to ensure that after the last owner loses access to the resource, it will finally be freed.
-    Shared pointers are suitable to be used in most situations, except in structures which have cyclic references \autoref{}.
-
-    % TODO add reference of cycle analysis further in paper
+    Shared pointers are suitable to be used in most situations, except in structures which have cyclic references \autoref{sec:cycle-analysis}.
 
     \subsection{Do Smart Pointer Solve Memory Management?}\label{subsec:do-smart-pointer-solve-memory-management?}
+
+    It would appear then that smart pointers could solve most of our memory management issues, however they were only introduced in the C++11 standard.
+    The C++ dialects till then did not have any of these language features, with programs being written predominantly in the C++03 standard.
+    There remain many such so called \emph{legacy} programs which have not upgraded to newer standards, and even then, it is up to the programmer to properly utilise smart pointers in their code.
+
+    We therefore propose to create an automatic refactoring tool \emph{(ptr-tidy)}, that statically analyses C++ code and aims to refactor usage of raw pointers into smart pointers.
+    It will involve a conservative analysis that first and foremost tries to identify raw pointers that only have a single unique owner at any point in the program.
+    If this cannot be guaranteed, then a more conservative refactoring to a shared pointer will be applied.
+
+    % TODO find reference or documentation that standards really are backwards compatible
+    Given that the language standards are mostly backwards-compatible~\cite{BackwardsCompatible}, we can apply these automatic refactoring without changing the runtime behaviour compared to the original programs.
+
+    % TODO reword section title - or move to proposed approach section
+
+    \subsection{The Research Questions}\label{subsec:the-research-questions}
+
+    \emph{"Can the translation of raw pointers into smart pointers using escape analysis be used to make existing C++ code more modern and extendable?"}
+
+    \emph{"Can the tool identify situations in which unique pointers should be used reliably?"}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -114,8 +116,35 @@
 
     \section{Background Survey}\label{sec:background-survey}
 
-    Present an overview of relevant previous work including articles, books, and existing software products.
-    Critically evaluate the strengths and weaknesses of the previous work.
+    In this section we will look into the frameworks and algorithms that we will use to enable us to read and refactor C++ code, and secondly identify the locations where we can apply our refactorings.
+
+    \subsection{Clang and LLVM}\label{subsec:clang-and-llvm}
+
+    C++ as a language is massive, and the first capability our tool will need is to be able to parse C++ code.
+    Doing this ourselves would be an undertaking that would likely span longer than the time span of the whole project, therefore it was decided early to use an existing parser.
+    The most capable and mature C++ parsers will naturally be the parsers used by the most popular compilers.
+    This leaves us therefore with a choice between GCC~\cite{GCC} and Clang~\cite{Clang}.
+    The literature~\cite{duffy2014} is fairly clear on the fact that the design of GCC makes it unsuitable for integration with other projects.
+    Clang on the other hand allows us access to the Clang abstract syntax tree (AST) and parser internals through consumers and visitors.
+
+    Clang is a front-end to the LLVM framework~\cite{Lattner2004} which transforms C++ code into the LLVM intermediate representation (IR).
+    The LLVM IR is a language-independent, static single assignment (SSA) representation of the program and will be the target on which we apply our analysis to identify refactoring opportunities.
+    We believe this choice will lead to several benefits in terms of the analysis power and future usage of the project:
+    \begin{itemize}
+        \item First, the usage of SSA allows us to efficiently generate a definition-usage graph, therefore allowing an efficient analysis of all the usages of a pointer to identify its number of owners.
+        \item Secondly, by separating the parsing and analysis, we make our analysis stage reusable by any other LLVM frontends.
+    \end{itemize}
+
+    Clang was also found to be a good choice of library in terms of usability since documentation and examples are readily found.
+    The AST that it produces is also rich in information and closely resembles the original code, as can be seen in \autoref{lst:code-to-ast-example}.
+    Information such as the line and column numbers are included, which makes programmatically rewriting source code extremely easy.
+
+    \begin{listing}
+        \inputminted{c++}{code/code-to-ast.cpp}
+        \inputminted[fontsize=\footnotesize]{text}{code/code-to-ast.txt}
+        \caption{Example of converting C++ code to Clang AST}
+        \label{lst:code-to-ast-example}
+    \end{listing}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

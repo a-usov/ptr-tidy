@@ -1,0 +1,9 @@
+TranslationUnitDecl 0x563b7d01f998 <<invalid sloc>> <invalid sloc>
+`-FunctionDecl 0x563b7d05f088 </tmp/main.cpp:1:1, line:4:1> line:1:5 main 'int ()'
+ `-CompoundStmt 0x563b7d05f2a8 <col:12, line:4:1>
+  |-DeclStmt 0x563b7d05f248 <line:2:5, col:14>
+  | `-VarDecl 0x563b7d05f1c0 <col:5, col:13> col:9 used a 'int' cinit
+  |   `-IntegerLiteral 0x563b7d05f228 <col:13> 'int' 4
+  `-ReturnStmt 0x563b7d05f298 <line:3:5, col:12>
+   `-ImplicitCastExpr 0x563b7d05f280 <col:12> 'int' <LValueToRValue>
+    `-DeclRefExpr 0x563b7d05f260 <col:12> 'int' lvalue Var 0x563b7d05f1c0 'a' 'int'
