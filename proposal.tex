@@ -39,7 +39,8 @@
     \emph{How difficult one might ask?}
 
     In a presentation by Matt Miller, a security engineer at Microsoft~\cite{Miller2019}, it is shown that around 70\% of vulnerabilities that are addressed through a security updates are due to memory safety issues.
-    This is at an industry-leading company who are renowned for hiring top talent.
+    In another presentation at the Linux Security Summit~\cite{Gaynor2020} it is shown that in several other top projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs attributed to issues with memory safety.
+    This is at industry-leading companies who are renowned for hiring top talent.
     Such memory safety vulnerabilities can be exploited, and due to new regulations such as the GDPR, these issues are more commonly exposed to the general public and punished by regulators.
     Such an example is a fine of £20m fine for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}.
 
@@ -145,6 +146,24 @@
         \caption{Example of converting C++ code to Clang AST}
         \label{lst:code-to-ast-example}
     \end{listing}
+
+    \subsection{Memory Safe Languages}\label{subsec:rust}
+
+    There have been many proposed systems languages such as Rust, Swift \footnote{\url{https://developer.apple.com/swift/}}, D \footnote{\url{https://dlang.org/}}, Nim \footnote{\url{https://nim-lang.org/}} or Ada (SPARK) \footnote{\url{https://adacore.com/}}, however none of these have arguably become mainstream, with Rust and Ada coming closest.
+
+    Swift remains mostly a language for the Apple MacOS and iOS environments for application creation, however it has seen some usage for system programs by companies such as IBM \footnote{\url{https://github.com/ibm-swift}}.
+    Ada or its subset language SPARK are used extensively in certain industries to create verifiable programs for critical systems such as in avionics.
+    It is perhaps most well-know for being used in the F-22 fighter aircraft~\cite{malas1997f}, however the use of Ada for those systems show its other weakness in productivity time as it was the cause for several delays in the project, and so it largely remains unused in areas which do not call for such meticulous safety.
+
+    Rust has been the most language in attractive widespread adoption as a systems language.
+    Its popularity could be quantified by considering that it is being considered for usage in writing Linux kernel modules \footnote{\url{https://lore.kernel.org/lkml/CAKwvOdmuYc8rW_H4aQG4DsJzho=F+djd68fp7mzmBp3-wY--Uw@mail.gmail.com/T}}, which cannot be said for C++.
+    Following the advice given by many that most systems programs should be written in Rust from now on, we see a potential future usage of our work in the creation of a C++ to Rust transpiler.
+
+    Whilst the automatic refactoring of raw pointers into smart pointers solves some memory issues, the language still offers other ways to invalidate memory safety.
+    Equivalent idiomatic Rust would be able to find some of these other errors at compile time.
+    A C++ to Rust transpiler would be a much larger undertaking, however we can envision how our project could be helpful.
+    Rust affine types~\cite{Balasubramanian2017} are semantically equivalent to C++ unique pointers, in that all values have a single unique owner at any point.
+    Therefore our work can identify which pointers are unique and which are not, and those that are not cannot be transpiled into safe Rust, instead requiring to use unsafe blocks to represent such values.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
