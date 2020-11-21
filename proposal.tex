@@ -51,9 +51,8 @@
 
     \emph{What can be done then to address this issue?}
 
-    % TODO add Rust performance benchmark reference
     Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
-    Rust is a systems language that offers the same performance as C and C++~\cite{RustBenchmark}, however its linear type system and memory ownership model also guarantee memory safety.
+    Rust is a systems language that offers the same performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model also guarantee memory safety.
     The rewriting of a program in a new language is a colossal undertaking, especially in language that has a reputation for being difficult to learn.
     We therefore propose an alternative partial solution to this problem by using a concept from Rust.
 
@@ -85,10 +84,9 @@
         \label{lst:first-example-unique}
     \end{listing}
 
-    % TODO add reference of cycle analysis further in paper
     There also exists a \emph{shared pointer} for resources which may not have a single unique owner.
     Reference counting is used to ensure that after the last owner loses access to the resource, it will finally be freed.
-    Shared pointers are suitable to be used in most situations, except in structures which have cyclic references \autoref{sec:cycle-analysis}.
+    Shared pointers are suitable to be used in most situations, except in structures which have cyclic references \autoref{subsec:shared-pointer-cycle-analysis}.
 
     \subsection{Do Smart Pointer Solve Memory Management?}\label{subsec:do-smart-pointer-solve-memory-management?}
 
@@ -100,8 +98,7 @@
     It will involve a conservative analysis that first and foremost tries to identify raw pointers that only have a single unique owner at any point in the program.
     If this cannot be guaranteed, then a more conservative refactoring to a shared pointer will be applied.
 
-    % TODO find reference or documentation that standards really are backwards compatible
-    Given that the language standards are mostly backwards-compatible~\cite{BackwardsCompatible}, we can apply these automatic refactoring without changing the runtime behaviour compared to the original programs.
+    Given that the language standards are mostly backwards-compatible~\cite{Winters2020}, we can apply these automatic refactoring without changing the runtime behaviour compared to the original programs.
 
     % TODO reword section title - or move to proposed approach section
 
@@ -145,6 +142,7 @@
         \inputminted[fontsize=\footnotesize]{text}{code/code-to-ast.txt}
         \caption{Example of converting C++ code to Clang AST}
         \label{lst:code-to-ast-example}
+        % \centerline{\includegraphics{images/code-to-ast}}
     \end{listing}
 
     \subsection{Memory Safe Languages}\label{subsec:rust}
@@ -174,6 +172,7 @@
     State how you propose to solve the software development problem.
     Show that your proposed approach is feasible, but identify any risks.
 
+    \subsection{Shared Pointer Cycle Analysis}\label{subsec:shared-pointer-cycle-analysis}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
