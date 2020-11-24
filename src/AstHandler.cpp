@@ -7,7 +7,7 @@ using namespace clang::tooling;
 void AstHandler::runCallback(MatchFinder::MatchCallback &callback, const llvm::StringRef code) {
   MatchFinder Finder;
 
-  Finder.addMatcher(varDecl().bind(""), &callback);
+  Finder.addMatcher(namedDecl().bind(""), &callback);
   std::unique_ptr<FrontendActionFactory> Factory(newFrontendActionFactory(&Finder));
   runToolOnCode(Factory->create(), code);
 }

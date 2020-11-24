@@ -9,9 +9,18 @@ using namespace clang::ast_matchers;
 void CountCallback::run(const MatchFinder::MatchResult &result) {
   m_rewriter.setSourceMgr(*result.SourceManager, result.Context->getLangOpts());
 
+  auto *function = result.Nodes.getNodeAs<FunctionDecl>("");
+  if (function && function->getReturnType()->isPointerType()) {
+    std::string newType = "std::shared_ptr<";
+    newType.append(function->getReturnType()->getPointeeType().getAsString());
+    newType.append("> ");
+    m_rewriter.ReplaceText(function->getReturnTypeSourceRange(), newType);
+    return;
+  }
+
   auto *var = result.Nodes.getNodeAs<VarDecl>("");
   if (!var) {
-    exit("Encountered not a VarDecl");
+    return;
   }
 
   if (var->hasGlobalStorage()) {
@@ -38,10 +47,19 @@ void CountCallback::run(const MatchFinder::MatchResult &result) {
   }
 
   if (var->getType()->isPointerType()) {
-    std::string newType = "std::shared_ptr<";
-    newType.append(var->getType()->getPointeeType().getAsString());
-    newType.append("> ");
+    std::string newType = "std::shared_ptr<" + var->getType()->getPointeeType().getAsString() + ">";
     m_rewriter.ReplaceText(SourceRange(var->getTypeSpecStartLoc(), var->getTypeSpecEndLoc()),
                            newType);
+
+    if (var->hasInit()) {
+      auto init = var->getInit();
+
+      auto decl_ref = dyn_cast<DeclRefExpr>(*init->child_begin());
+      auto name = decl_ref->getDecl()->getNameAsString();
+      auto type = decl_ref->getDecl()->getType().getAsString();
+
+      auto newType = "std::make_shared<" + type + ">(" + name + ")";
+      m_rewriter.ReplaceText(init->getSourceRange(), newType);
+    }
   }
 }
