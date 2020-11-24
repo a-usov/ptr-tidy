@@ -3,8 +3,6 @@
 #include "boost/optional.hpp"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include <string>
 
 class IrHandler {
   llvm::LLVMContext m_context;

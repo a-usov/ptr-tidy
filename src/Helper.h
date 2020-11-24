@@ -1,7 +1,7 @@
 #pragma once
 
-#include "clang/AST/ASTContext.h"
-#include "llvm/Support/raw_os_ostream.h"
+#include "clang/AST/Mangle.h"
+#include "llvm/IR/ValueSymbolTable.h"
 
 inline void exit(const llvm::StringRef &message) {
   llvm::errs() << message << "\n";
@@ -24,7 +24,7 @@ inline std::string getMangledName(clang::ASTContext *context, const clang::Named
 }
 
 inline llvm::Value *getLocalValue(const clang::VarDecl *var, const llvm::Module &module,
-                                     clang::ASTContext *context) {
+                                  clang::ASTContext *context) {
   auto *parentFunctionAST = dyn_cast<clang::FunctionDecl>(var->getParentFunctionOrMethod());
   auto *parentFunctionIR = module.getFunction(getMangledName(context, parentFunctionAST));
   auto *valueSymbol = parentFunctionIR->getValueSymbolTable();

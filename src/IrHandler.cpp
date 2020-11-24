@@ -1,9 +1,8 @@
 #include "IrHandler.h"
-#include <sstream>
-
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/Host.h"
+#include <sstream>
 
 using namespace clang;
 using namespace llvm;

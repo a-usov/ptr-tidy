@@ -7,5 +7,6 @@ int *test(int *b) {
 
 int main() {
   int b = 2;
+  int *c = &a;
   test(&b);
 }

@@ -13,4 +13,6 @@ int main(int argc, char *argv[]) {
 
   CountCallback callback(argv[1]);
   AstHandler::runCallback(callback, sourceFileOrError.get()->getBuffer());
+
+  callback.getRewriter().getEditBuffer(callback.getRewriter().getSourceMgr().getMainFileID()).write(llvm::errs());
 }

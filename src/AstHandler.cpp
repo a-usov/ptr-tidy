@@ -1,4 +1,5 @@
 #include "AstHandler.h"
+#include "clang/Tooling/Tooling.h"
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
