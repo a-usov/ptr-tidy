@@ -2,7 +2,8 @@
 \usepackage{graphicx}
 \usepackage[square,numbers]{natbib}
 \usepackage{listing}
-\usepackage{minted}
+\usepackage[labelfont=bf]{caption}
+\usepackage[outputdir=out]{minted}
 \usepackage{chngcntr}
 \usepackage[hyphens]{url}
 \usepackage{hyperref}
@@ -73,10 +74,14 @@
         \label{lst:manual-leak}
     \end{listing}
 
+    % TODO insert some information about heap vs stack
+
     In \autoref{lst:manual-leak} we can see that when using a raw pointer, there are two cases in which the programmer will never free the allocated memory.
     Instead we can \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)} to create resource handles which automatically eliminate resource leaks with no added overhead.
-    The equivalent code using \emph{unique pointers} can be seen in \autoref{lst:first-example-unique}.
+    Firstly there are \emph{unique pointers} which are a pointer that has only a single unique owner at any time.
+    We can therefore fix the cases in which we leak the memory using a unique pointer which can be seen in in \autoref{lst:first-example-unique}.
     In the comments, we can see all the locations where \emph{p} exits the scope of the function and where the compiler will insert delete statements, now ensuring that the resource will never get leaked.
+    The ownership of a unique pointer can be transferred between variables using \mintinline{c++}{std::move} which moves the ownership from one variable to another.
 
     \begin{listing}
         \inputminted{c++}{code/first-example-unique.cpp}
@@ -140,21 +145,61 @@
     \begin{listing}
         \inputminted{c++}{code/code-to-ast.cpp}
         \inputminted[fontsize=\footnotesize]{text}{code/code-to-ast.txt}
-        \caption{Example of converting C++ code to Clang AST}
+        \centerline{\includegraphics{images/code-to-ast}}
+        \caption{Example of converting C++ code to Clang AST. All diagrams show equivalent representation of a small C++ code snippet}
         \label{lst:code-to-ast-example}
-        % \centerline{\includegraphics{images/code-to-ast}}
     \end{listing}
+
+    \subsection{Pointer Analysis}\label{subsec:pointer-analysis}
+
+    The main capability of the tool is to be able to identify what the maximum number of owners a pointer has at all points of the program execution, for all pointers in any given program.
+    If this number for a given raw pointer is one, then we can go about converting all usages of that raw pointer into a unique pointer.
+    This will involve changing the type of the initial declaration, its definition as well as removing all deletions of the pointer, which can be seen in \autoref{lst:manual-leak} and \autoref{lst:first-example-unique}.
+    If it is more than one then the invariants of a unique pointer cannot be satisfied, and we instead have to use the less performant shared smart pointer.
+    A key intuition, mentioned in \autoref{subsec:using-smart-pointers-for-memory-management}, is that a shared pointer can be substituted for most uses of a raw pointer, making it the default fallback.
+
+    A pointer may have more than one owner at a time by copying the pointer to another variable.
+    Effectively the address of the underlying region of memory can be accessed through more than one variable, and any accesses of one variable affect the others.
+    For example, a pointer may be freed using one variable, and this would invalidate the other variable, causing a memory safety violation if we try to use it.
+
+    We can formalise the notion of copying a pointer by introducing the concept of \emph{escape analysis}.
+    Escape analysis is used to determine whether an object \emph{escapes} or is accessible from outside the method or thread that created the object~\cite{Choi1999}.
+    It has been used in languages such as Java~\cite{Choi1999} to determine whether an object that is created in a method escapes, and if it does not, meaning it is only used locally in the method, then it can be allocated on the stack rather than the heap as a performance optimisation.
+    Clang also uses escape analysis for a similar kind of optimisation~\footnote{\url{https://github.com/llvm/llvm-project/blob/master/llvm/lib/Analysis/CaptureTracking.cpp}} and also defines the term \emph{pointer capture}.
+    A pointer value is captured if the function makes a copy of any part of the pointer that outlives the call.
+    We can then see that any pointer that escapes must also be captured since there is no way to refer to an object without being able to determine its address, but not visa versa.
+    In \autoref{lst:capture-example} we can see an example where a pointer may be captured but does not escape and in \autoref{lst:escape-example} we see an example of an escaped pointer.
+
+    \begin{listing}
+        \inputminted{c++}{code/capture-example.cpp}
+        \caption{The pointer is captured in isEven since the pointer is used for a value that outlives its call, but not captured since the value of the pointer is not stored anywhere outside the function or thread}
+        \label{lst:capture-example}
+    \end{listing}
+
+    \begin{listing}
+        \inputminted{c++}{code/escape-example.cpp}
+        \caption{The pointer is both captured and escapes since the pointer and its value outlive the call of the function and it is accessible by any other method or thread since it is copied to a global variable}
+        \label{lst:escape-example}
+    \end{listing}
+
+    We can now see that invariant of the unique pointer are only violated in two conditions:
+    \begin{itemize}
+        \item First, a pointer escapes, as then we do not know where or how the pointer may be used, so we must take a conservative approach and assume the pointer no longer has at most a single unique owner.
+        \item Secondly, if a pointer is captured more than once, as we can model a single capture as a move of the unique pointer.
+    \end{itemize}
+
+    \subsubsection{Escape Analysis Algorithms}\label{subsubsec:escape-analysis-algorithms}
 
     \subsection{Memory Safe Languages}\label{subsec:rust}
 
-    There have been many proposed systems languages such as Rust, Swift \footnote{\url{https://developer.apple.com/swift/}}, D \footnote{\url{https://dlang.org/}}, Nim \footnote{\url{https://nim-lang.org/}} or Ada (SPARK) \footnote{\url{https://adacore.com/}}, however none of these have arguably become mainstream, with Rust and Ada coming closest.
+    There have been many proposed systems languages such as Rust, Swift~\footnote{\url{https://developer.apple.com/swift/}}, D~\footnote{\url{https://dlang.org/}}, Nim~\footnote{\url{https://nim-lang.org/}} or Ada (SPARK)~\footnote{\url{https://adacore.com/}}, however none of these have arguably become mainstream, with Rust and Ada coming closest.
 
-    Swift remains mostly a language for the Apple MacOS and iOS environments for application creation, however it has seen some usage for system programs by companies such as IBM \footnote{\url{https://github.com/ibm-swift}}.
+    Swift remains mostly a language for the Apple MacOS and iOS environments for application creation, however it has seen some usage for system programs by companies such as IBM~\footnote{\url{https://github.com/ibm-swift}}.
     Ada or its subset language SPARK are used extensively in certain industries to create verifiable programs for critical systems such as in avionics.
     It is perhaps most well-know for being used in the F-22 fighter aircraft~\cite{malas1997f}, however the use of Ada for those systems show its other weakness in productivity time as it was the cause for several delays in the project, and so it largely remains unused in areas which do not call for such meticulous safety.
 
     Rust has been the most language in attractive widespread adoption as a systems language.
-    Its popularity could be quantified by considering that it is being considered for usage in writing Linux kernel modules \footnote{\url{https://lore.kernel.org/lkml/CAKwvOdmuYc8rW_H4aQG4DsJzho=F+djd68fp7mzmBp3-wY--Uw@mail.gmail.com/T}}, which cannot be said for C++.
+    Its popularity could be quantified by considering that it is being considered for usage in writing Linux kernel modules~\footnote{\url{https://lore.kernel.org/lkml/CAKwvOdmuYc8rW_H4aQG4DsJzho=F+djd68fp7mzmBp3-wY--Uw@mail.gmail.com/T}}, which cannot be said for C++.
     Following the advice given by many that most systems programs should be written in Rust from now on, we see a potential future usage of our work in the creation of a C++ to Rust transpiler.
 
     Whilst the automatic refactoring of raw pointers into smart pointers solves some memory issues, the language still offers other ways to invalidate memory safety.
@@ -162,6 +207,24 @@
     A C++ to Rust transpiler would be a much larger undertaking, however we can envision how our project could be helpful.
     Rust affine types~\cite{Balasubramanian2017} are semantically equivalent to C++ unique pointers, in that all values have a single unique owner at any point.
     Therefore our work can identify which pointers are unique and which are not, and those that are not cannot be transpiled into safe Rust, instead requiring to use unsafe blocks to represent such values.
+
+    \subsubsection{Garbage Languages}
+
+    Garbage collected languages encompass some of the most popular programming languages such as Java and Python.
+    They are considered to be easier languages than C++ since they remove the need for memory management.
+    In C++, if memory is properly freed, it gets leaked and can eventually cause out of memory errors.
+    Garbage collectors instead run periodically to identify leaked memory and free it.
+    Garbage collectors instead run periodically and scan the memory of the program to find objects in memory which were allocated but are no longer used anymore, i.e leaked and then free the leaked objects.
+    Languages such as Java~\cite{Tauro2012} use this fully by allocating almost every object on the heap and not freeing any object, instead relying on the garbage collector to clean up.
+    They are therefore considered to be easier and more productive to use.
+
+    Garbage collection does also exist for C++ such as the Boehm-Demers-Weiser conservative garbage collector~\cite{boehm2002garbage}.
+    So why is garbage collection not used in every language?
+    Garbage collection is not zero-cost as the garbage collection algorithm typically stops the execution of the running program to clean up the memory.
+    This means that latency or pauses is introduced to every program, and can occur at any point in the execution of the program, such as during the hot path of the program.
+    This has led to garbage collected languages being unsuitable for use in systems programs such as OS's, as for example it would be undesirable to have seemingly random latency when interacting with the system.
+    There has been research in modern garbage collection algorithms such as ZGC~\cite{ZGC} and Shenandoah~\cite{flood2016shenandoah} for Java which aim to reduce the number and duration of pauses where the garbage collector runs, increasing the responsiveness of the Java virtual machine.
+    However, even with much reduced duration of pauses, it may still be unsuitable for some systems with strict latency requirements such as OS's or financial systems.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
