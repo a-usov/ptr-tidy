@@ -1,0 +1,31 @@
+name: "CodeQL"
+
+on: push
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'cpp' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Install Clang and Boost development Libraries
+      run: sudo apt-get install clang libclang-dev libboost-dev libgtest-dev
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v1
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v1
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v1
