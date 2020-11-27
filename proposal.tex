@@ -6,6 +6,7 @@
 \usepackage[outputdir=out]{minted}
 \usepackage{chngcntr}
 \usepackage[hyphens]{url}
+\usepackage{tikz}
 \usepackage{hyperref}
 
 \setminted{frame=lines, linenos, autogobble}
@@ -126,11 +127,12 @@
     C++ as a language is massive, and the first capability our tool will need is to be able to parse C++ code.
     Doing this ourselves would be an undertaking that would likely span longer than the time span of the whole project, therefore it was decided early to use an existing parser.
     The most capable and mature C++ parsers will naturally be the parsers used by the most popular compilers.
-    This leaves us therefore with a choice between GCC~\cite{GCC} and Clang~\cite{Clang}.
+    This leaves us therefore with a choice between GCC~\footnote{https://gcc.gnu.org/} and Clang~\footnote{https://clang.llvm.org/}.
     The literature~\cite{duffy2014} is fairly clear on the fact that the design of GCC makes it unsuitable for integration with other projects.
     Clang on the other hand allows us access to the Clang abstract syntax tree (AST) and parser internals through consumers and visitors.
 
     Clang is a front-end to the LLVM framework~\cite{Lattner2004} which transforms C++ code into the LLVM intermediate representation (IR).
+    % TODO define SSA
     The LLVM IR is a language-independent, static single assignment (SSA) representation of the program and will be the target on which we apply our analysis to identify refactoring opportunities.
     We believe this choice will lead to several benefits in terms of the analysis power and future usage of the project:
     \begin{itemize}
@@ -165,6 +167,7 @@
     We can formalise the notion of copying a pointer by introducing the concept of \emph{escape analysis}.
     Escape analysis is used to determine whether an object \emph{escapes} or is accessible from outside the method or thread that created the object~\cite{Choi1999}.
     It has been used in languages such as Java~\cite{Choi1999} to determine whether an object that is created in a method escapes, and if it does not, meaning it is only used locally in the method, then it can be allocated on the stack rather than the heap as a performance optimisation.
+    % TODO pin footnote to specific commit possibly
     Clang also uses escape analysis for a similar kind of optimisation~\footnote{\url{https://github.com/llvm/llvm-project/blob/master/llvm/lib/Analysis/CaptureTracking.cpp}} and also defines the term \emph{pointer capture}.
     A pointer value is captured if the function makes a copy of any part of the pointer that outlives the call.
     We can then see that any pointer that escapes must also be captured since there is no way to refer to an object without being able to determine its address, but not visa versa.
@@ -172,7 +175,7 @@
 
     \begin{listing}
         \inputminted{c++}{code/capture-example.cpp}
-        \caption{The pointer is captured in isEven since the pointer is used for a value that outlives its call, but not captured since the value of the pointer is not stored anywhere outside the function or thread}
+        \caption{The pointer is captured in isOdd since the pointer is used for a value that outlives its call, but does not escape since the value of the pointer is not stored anywhere outside the function or thread}
         \label{lst:capture-example}
     \end{listing}
 
@@ -189,6 +192,93 @@
     \end{itemize}
 
     \subsubsection{Escape Analysis Algorithms}\label{subsubsec:escape-analysis-algorithms}
+
+    Given how we have defined how escape analysis can be used to identify areas of refactoring, we now need to identify a suitable algorithm.
+
+    There has been extensive research on escape analysis for Java, where escape analysis is used to determine whether a object escapes the current method, as then if it can be proven that the object does not escape the method, then it is local to the method invocation and it can be allocated on the stack rather than as a heap variable (the default for all Java objects).
+
+    The escape analysis algorithm described by \citet{Choi1999} is used as the default escape analysis algorithm in the Oracle Java Virtual Machine implementation~\footnote{https://docs.oracle.com/en/java/javase/15/vm/java-hotspot-virtual-machine-performance-enhancements.html} and is widely cited so forms the basis of our investigation.
+    Due to how similar C++ and Java are in terms of their Object-Oriented features, will analyse their algorithm as well as the implementations of escape analysis in the LLVM and Go compilers.
+
+    \citet{Choi1999} introduce the abstraction of a \emph{connection graph} (CG) which we will see is also used in other implementations.
+    The connection graph captures relationships between heap-allocated objects and object references.
+    The graph is used to perform reachability analysis to determine if an is local to a thread or method.
+    Most importantly, this abstraction allows for a more powerful interprocedural analysis to be performed.
+
+    The CG is a directed graph $CG = (N_{o} \cup N_{r}, E_{p} \cup E_{d} \cup E_{f})$ where $N_{o}$ is the set of objects.
+    $N_{r}$ is the set of reference nodes which include local variables, parameters, fields and global reference variables.
+    $E_{p}$ is the set of points-to edges which exists between a reference node which points to object node.
+    $E_{d}$ is the set of deferred edges, where a deferred edge from one node $p$ to node $q$ signifies it points to what $q$ points to.
+    $E_{f}$ is the set of of all edges between objects that are a field of another object.
+    We can see in \autoref{fig:connection-graph-choi} how a connection graph would be constructed for simple Java statements.
+
+    % TODO replace with tikz graphics
+
+    \begin{figure}
+        \centering
+        \begin{tikzpicture}[scale=0.5]
+            \draw (0, 0) circle (1) node{a};
+            \draw[->, line width=1pt] (1, 0) -- node[above] {P} (3, 0);
+            \draw (3, -1) rectangle node{S1} (5, 1);
+
+            \draw (1, -5) circle (1) node{f};
+            \draw (4, -5) circle (1) node{g};
+            \draw (7, -5) circle (1) node{h};
+            \draw[->, line width=1pt] (4, -1) -- node[above] {F} (1, -4);
+            \draw[->, line width=1pt] (4, -1) -- node[above left] {F} (4, -4);
+            \draw[->, line width=1pt] (4, -1) -- node[above] {F} (7, -4);
+
+            \node[text width=4.5cm] at (0, 3) {S1: T a = new T(\ldots)};
+        \end{tikzpicture}
+        \begin{tikzpicture}[scale=0.5]
+            \draw (-4, 0) circle (1) node{b};
+            \draw[->, line width=1pt, dashed] (-3, 0) -- node[above] {D} (-1, 0);
+            \draw (0, 0) circle (1) node{a};
+            \draw[->, line width=1pt] (1, 0) -- node[above] {P} (3, 0);
+            \draw (3, -1) rectangle node{S1} (5, 1);
+
+            \draw (1, -5) circle (1) node{f};
+            \draw (4, -5) circle (1) node{g};
+            \draw (7, -5) circle (1) node{h};
+            \draw[->, line width=1pt] (4, -1) -- node[above] {F} (1, -4);
+            \draw[->, line width=1pt] (4, -1) -- node[above left] {F} (4, -4);
+            \draw[->, line width=1pt] (4, -1) -- node[above] {F} (7, -4);
+
+            \node[text width=4.5cm] at (0, 3) {S2: T b = a};
+        \end{tikzpicture}
+        \caption{A simple connection graph. Boxes indicate object nodes and circles indicate reference nodes (including field reference nodes). Solid edges indicate points-to edge, dashed edges indicate deferred edges, and edges from boxes to circles indicate field edges~\cite{Choi1999}}
+        \label{fig:connection-graph-choi}
+    \end{figure}
+
+    For each node, we associate an escape set, of either \emph{NoEscape}, \emph{ArgEscape} or \emph{GlobalEscape}.
+    \emph{NoEscape} means that the object does not escape the method in which it was created
+    \emph{ArgEscape}, with respect to a method, means that the object escapes that method via the method arguments or return value,
+    but does not escape the thread in which it is created.
+    Finally, \emph{GlobalEscape} means that the object is regarded as escaping globally.
+    The initial state for each global node is \emph{GlobalEscape} and \emph{NoEscape} for all other nodes, unless otherwise stated.
+
+    The escape analysis is executed through their defined construction of intraprocedural graphs for each method call.
+    We then proceed with the interprocedural by using the CG of the callee to update the CG of the caller.
+
+    At the completion of the escape analysis, all objects which are marked NoEscape and cannot be reached by any node whose state is not \emph{NoEscape} do not escape and are local to the thread in which they are created.
+    We show in \autoref{subsec:Interprocedural-analysis} how we can adapt this algorithm to check if the invarients defined in \autoref{subsec:pointer-analysis} are met.
+
+    % TODO move this to the referenced section - Key insight is that we can use defined analysis to check if object escapes. but if each node has at most one object incoming node, it means they are captured at most once
+
+    Go is another language that uses a escape analysis to allocate objects on the stack rather than the heap.
+    Their escape analysis algorithms is not defined in the specification of the language, however we can look at the source~\footnote{https://github.com/golang/go/blob/master/src/cmd/compile/internal/gc/escape.go} to determine what algorithm they use.
+    Fortunately the comments give a summary of their algorithm, which involves constructing a weighted graph where vertices represent variables, and edges represent assignments between variables.
+    They walk the graph, looking for assignment paths that violate the invariants of a variable being allocated on the stack and mark those as requiring heap allocation
+    We can see that this approach is highly similar to the use of connection graphs by \citet{Choi1999}, however there is lacking documentation on how they perform interprocedural analysis so their analysis is perhaps weaker.
+
+    Finally, LLVM also uses escape analysis to remove any unnecessary heap allocations.
+    The escape analysis algorithm is also not formally defined, however we can also look at the source code~\footnote{https://github.com/llvm/llvm-project/blob/master/llvm/lib/Analysis/CaptureTracking.cpp}.
+    We see that the \mintinline{c++}{PointerMayBeCaptured} function uses the fact that the single static assignment (SSA) in the LLVM IR allows for efficient creation of definition-usage chains.
+    For any defined value, such as a value initialising a variable, we can traverse all its usages, such as copying to another variable.
+    To determine if an object escapes, we analyse all its usages, and all their usages and so on.
+    For each usage, we then determine if it is an instruction which would cause the object to escape.
+    This leads to a roughly similar analysis as the work by \citet{Choi1999} when considering the intraprocedural analysis alone, as we informally explore a graph of the nodes that represent objects and nodes that obtain references to objects by using the original value in a copy instruction.
+    However, its assumption about different instructions are conservative, and it also has no interprocedural analysis, making it the weakest analysis so far.
 
     \subsection{Memory Safe Languages}\label{subsec:rust}
 
@@ -208,12 +298,11 @@
     Rust affine types~\cite{Balasubramanian2017} are semantically equivalent to C++ unique pointers, in that all values have a single unique owner at any point.
     Therefore our work can identify which pointers are unique and which are not, and those that are not cannot be transpiled into safe Rust, instead requiring to use unsafe blocks to represent such values.
 
-    \subsubsection{Garbage Languages}
+    \subsubsection{Garbage Collected Languages}
 
     Garbage collected languages encompass some of the most popular programming languages such as Java and Python.
-    They are considered to be easier languages than C++ since they remove the need for memory management.
-    In C++, if memory is properly freed, it gets leaked and can eventually cause out of memory errors.
-    Garbage collectors instead run periodically to identify leaked memory and free it.
+    They are considered to be easier languages than C++ since they remove the need for manual memory management by the programmer.
+    In C++, if memory is improperly freed, it gets leaked and can eventually cause out of memory errors.
     Garbage collectors instead run periodically and scan the memory of the program to find objects in memory which were allocated but are no longer used anymore, i.e leaked and then free the leaked objects.
     Languages such as Java~\cite{Tauro2012} use this fully by allocating almost every object on the heap and not freeing any object, instead relying on the garbage collector to clean up.
     They are therefore considered to be easier and more productive to use.
