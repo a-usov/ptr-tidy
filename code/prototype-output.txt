@@ -1,0 +1,15 @@
+<input.cc:1:10, col:15> Variable b is captured
+<input.cc:6:3, col:11> Variable a is not captured
+<input.cc:7:3, col:11> Variable b is captured
+<input.cc:8:3, col:13> Variable c is not captured
+
+int test(std::shared_ptr<int>b) {
+  return 2;
+}
+
+int main() {
+  int a = 9;
+  int b = 2;
+  std::shared_ptr<int>c = std::make_shared<int>(b);
+  test(&b);
+}

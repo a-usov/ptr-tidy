@@ -7,6 +7,8 @@
 \usepackage{chngcntr}
 \usepackage[hyphens]{url}
 \usepackage{tikz}
+\usepackage{pgfgantt}
+\usepackage{lscape}
 \usepackage{hyperref}
 
 \setminted{frame=lines, linenos, autogobble}
@@ -14,6 +16,7 @@
 \begin{document}
 
     \counterwithin{listing}{section}
+    \counterwithin{figure}{section}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -156,7 +159,6 @@
 
     The main capability of the tool is to be able to identify what the maximum number of owners a pointer has at all points of the program execution, for all pointers in any given program.
     If this number for a given raw pointer is one, then we can go about converting all usages of that raw pointer into a unique pointer.
-    This will involve changing the type of the initial declaration, its definition as well as removing all deletions of the pointer, which can be seen in \autoref{lst:manual-leak} and \autoref{lst:first-example-unique}.
     If it is more than one then the invariants of a unique pointer cannot be satisfied, and we instead have to use the less performant shared smart pointer.
     A key intuition, mentioned in \autoref{subsec:using-smart-pointers-for-memory-management}, is that a shared pointer can be substituted for most uses of a raw pointer, making it the default fallback.
 
@@ -188,7 +190,7 @@
     We can now see that invariant of the unique pointer are only violated in two conditions:
     \begin{itemize}
         \item First, a pointer escapes, as then we do not know where or how the pointer may be used, so we must take a conservative approach and assume the pointer no longer has at most a single unique owner.
-        \item Secondly, if a pointer is captured more than once, as we can model a single capture as a move of the unique pointer.
+        \item Secondly, if a pointer is captured at most once, as we can model a single capture as a move of the unique pointer.
     \end{itemize}
 
     \subsubsection{Escape Analysis Algorithms}\label{subsubsec:escape-analysis-algorithms}
@@ -212,8 +214,6 @@
     $E_{f}$ is the set of of all edges between objects that are a field of another object.
     We can see in \autoref{fig:connection-graph-choi} how a connection graph would be constructed for simple Java statements.
 
-    % TODO replace with tikz graphics
-
     \begin{figure}
         \centering
         \begin{tikzpicture}[scale=0.5]
@@ -225,7 +225,7 @@
             \draw (4, -5) circle (1) node{g};
             \draw (7, -5) circle (1) node{h};
             \draw[->, line width=1pt] (4, -1) -- node[above] {F} (1, -4);
-            \draw[->, line width=1pt] (4, -1) -- node[above left] {F} (4, -4);
+            \draw[->, line width=1pt] (4, -1) -- node[below left] {F} (4, -4);
             \draw[->, line width=1pt] (4, -1) -- node[above] {F} (7, -4);
 
             \node[text width=4.5cm] at (0, 3) {S1: T a = new T(\ldots)};
@@ -241,7 +241,7 @@
             \draw (4, -5) circle (1) node{g};
             \draw (7, -5) circle (1) node{h};
             \draw[->, line width=1pt] (4, -1) -- node[above] {F} (1, -4);
-            \draw[->, line width=1pt] (4, -1) -- node[above left] {F} (4, -4);
+            \draw[->, line width=1pt] (4, -1) -- node[below left] {F} (4, -4);
             \draw[->, line width=1pt] (4, -1) -- node[above] {F} (7, -4);
 
             \node[text width=4.5cm] at (0, 3) {S2: T b = a};
@@ -261,9 +261,7 @@
     We then proceed with the interprocedural by using the CG of the callee to update the CG of the caller.
 
     At the completion of the escape analysis, all objects which are marked NoEscape and cannot be reached by any node whose state is not \emph{NoEscape} do not escape and are local to the thread in which they are created.
-    We show in \autoref{subsec:Interprocedural-analysis} how we can adapt this algorithm to check if the invarients defined in \autoref{subsec:pointer-analysis} are met.
-
-    % TODO move this to the referenced section - Key insight is that we can use defined analysis to check if object escapes. but if each node has at most one object incoming node, it means they are captured at most once
+    We show in \autoref{subsubsec:interprocedural-analysis} how we can adapt this algorithm to check if the invariants defined in \autoref{subsec:pointer-analysis} are met.
 
     Go is another language that uses a escape analysis to allocate objects on the stack rather than the heap.
     Their escape analysis algorithms is not defined in the specification of the language, however we can look at the source~\footnote{https://github.com/golang/go/blob/master/src/cmd/compile/internal/gc/escape.go} to determine what algorithm they use.
@@ -321,10 +319,132 @@
 
     \section{Proposed Approach}\label{sec:proposed-approach}
 
-    State how you propose to solve the software development problem.
-    Show that your proposed approach is feasible, but identify any risks.
+    % TODO rename section to something better
+
+    \subsection{Current Progress}\label{subsec:current-progress}
+
+    As mentioned in \autoref{subsec:clang-and-llvm}, we plan on using Clang for parsing C++ code into an AST and LLVM IR for the analysis.
+    We can employ the visitor pattern to traverse the AST and look for nodes of interest, such as variable declaration nodes \emph{(varDecl)}.
+    Given a node in the AST, we can find its equivalent declaration in the IR\@.
+    This is mainly possible since we can see from line 7 in \autoref{lst:code-to-ast-ir} that the variable names can matched from to AST to the IR\@.
+
+    \begin{listing}
+        \inputminted[fontsize=\footnotesize, breaklines]{llvm}{code/code-to-ast-summary.ll}
+        \caption{The LLVM IR representation of the program in \autoref{lst:code-to-ast-example}. Listing has been summarized for clarity.}
+        \label{lst:code-to-ast-ir}
+    \end{listing}
+
+    We can then apply escape analysis for this particular value, which will give us a boolean \mintinline{c++}{true} or \mintinline{c++}{false} result.
+    Based on the returned value, we know if the value does not escape and so we can refactor all the usages of this value.
+    This will involve changing the type of the initial declaration, its definition, as well as removing all deletions of the pointer, which can be seen in \autoref{lst:manual-leak} and \autoref{lst:first-example-unique}.
+    This is repeated for all usages of the value as well, such as being used as a formal argument.
+    The diagram in \autoref{fig:design} shows a visual representation of this proposed design.
+
+    \begin{figure}
+        \centering
+        \begin{tikzpicture}[scale=0.33, every node/.style={scale=0.75}]
+            \draw (0,0) rectangle node{program.cpp} (6, 3);
+            \draw (10, 0) rectangle node{parser} (16, 3);
+            \draw[->, line width=1pt] (6, 1.5) -- node[above] {input} (10, 1.5);
+
+            \draw (19, 3) rectangle node{AST} (25, 6);
+            \draw (19, 0) rectangle node{IR} (25, -3);
+            \draw[->, line width=1pt] (16, 1.5) -- (19, 4.5);
+            \draw[->, line width=1pt] (16, 1.5) -- (19, -1.5);
+
+            \draw (28, 0) rectangle node{Analysis} (34, 3);
+            \draw[->, line width=1pt] (25, 4.5) -- (28, 1.5);
+            \draw[->, line width=1pt] (25, -1.5) -- (28, 1.5);
+
+            \draw (37, 3) rectangle node{Rewriter} (43, 6);
+            \draw[->, line width=1pt] (25, 4.5) --  (37, 4.5);
+            \draw[->, line width=1pt] (34, 1.5) -- node[below right, text width=3cm] {refactoring decision} (37, 4.5);
+
+            \draw (46, 0) rectangle node{refactored.cpp} (52, 3);
+            \draw[->, line width=1pt] (43, 4.5) -- node[above right] {output} (46, 1.5);
+
+            \draw (10, -5) rectangle (43, 8);
+            \node[text width=0cm] at (10, 6) {Ptr-tidy};
+
+        \end{tikzpicture}
+        \caption{Proposed design of Ptr-tidy tool. Parser is the Clang C++ parser which produces an AST and IR representation of the input code. Analysis is the chosen escape analysis algorithm. It produces a decision of whether the pointer is suitable for refactoring, and passes this to the refactoring component which rewrites the code using smart pointers to produce the safer output program.}
+        \label{fig:design}
+    \end{figure}
+
+    This design mirrors the modular design of LLVM where because the analysis is performed on the IR, it could be reused by the frontend of a different language and not necessarily Clang as we do.
+    Secondly this also enables us to flexibly test different algorithms as the C++ specific parsing and refactoring code is not affected by the choice or power of the analysis.
+    This design has been already used to create a prototype of the tool~\footnote{https://github.com/a-usov/ptr-tidy/tree/c44e67022ba5fa2b3a541f4e730230c1e378e46e}.
+    The prototype shows that combining the AST and IR is viable and uses the already implemented LLVM escape analysis on variable declarations.
+    It also shows how Clang library allows for easy refactoring since the AST stores all source text and line numbers, making text substitution easy.
+    Substitution of AST nodes rather than source text substitution has not been explored, however this is as documentation states that generally the AST should remain immutable.
+
+    The prototype does not currently combine the analysis with the refactoring, which will be the next logical step.
+    The source refactoring is also not fully implemented, and is currently only a proof-of-concept.
+    However, \autoref{lst:prototype} shows an example output of running the prototype on a small code block, and it shows how the core idea of the project is achievable.
+
+    \begin{listing}
+        \inputminted{c++}{code/prototype-input.cpp}
+        \inputminted{text}{code/prototype-output.txt}
+        \caption{Output from using prototype tool on a chunk of code. We see the analysis of the variables in the code, as well as refactoring to use smart pointers. Analysis and refactoring not yet combined as b should not be refactored as analysis identifies it as captured, due to not being able to work across function boundaries.}
+        \label{lst:prototype}
+    \end{listing}
+
+    \subsection{Proposed Further Work}\label{subsec:proposed-further-work}
+
+    As mentioned in \autoref{subsec:current-progress}, the next work will be on completing the prototype to fully working tool.
+    This will involve completing the code refactoring component and combining this with the analysis.
+    This initial step will allow us to use the tool for initial benchmarking, as described in \autoref{subsec:benchmarking}, and this will also likely expose unhandled edge-cases, allowing us to refine the design before moving on to completing more complex analyses, as this means we can quickly complete the minimum viable product.
+    Afterwards, the focus will be on improving the analysis, by creating an interprocedural analysis, as we envision that the existing LLVM analysis will give us poor results, as pointers are often used across function boundaries, as otherwise the programmer could have used a stack variable instead.
+
+    \subsubsection{Interprocedural Analysis}\label{subsubsec:interprocedural-analysis}
+
+    We propose using a modified version of the escape analysis algorithm by \citet{Choi1999} to identify if the proposed invariants in \autoref{subsec:pointer-analysis} are violated.
+    The original algorithm already tells us whether a pointer escapes or not, however it will not tell us what the maximum number of unique owners a pointer will have throughout the execution of the program.
+    We can reuse their idea of the connection graph and add an extra condition.
+    If we look at \autoref{fig:connection-graph-choi}, then we can see that then when we copy a pointer, a new reference node with a deferred edge is created, pointing to the original pointer.
+    If each reference node has at most one incoming edge, then we know that each pointer is copied at most once, and therefore only gives ownership once, meaning that it will have at most one unique owner throughout program execution.
+    This relies on careful modeling where using pointers as function arguments is modelled as the creation of new reference nodes, which is valid in C++ as it has pass-by-value semantics.
+
+    Such an algorithm should give us better results as it will be able to determine whether pointers which are returned from functions escape, as this is a case which the intraprocedural analysis cannot determine and has to take a conservative approach in assuming it escapes.
 
     \subsection{Shared Pointer Cycle Analysis}\label{subsec:shared-pointer-cycle-analysis}
+
+    There is an emphasis in the project that the refactored program should not differ in runtime behaviour.
+    The implementation of shared pointers in the C++ standard library however cause a possible issue to this aim.
+    First of all, shared pointers are implemented using reference counting, so there is already a performance detriment if we they are used instead of raw pointers.
+    We choose to omit performance detriments, as they are likely to be marginal, however we will benchmark if any exists.
+
+    The issue that we are concerned with are functional requirements of programs, specifically that in some cases, shared pointers will fail to free memory.
+    This occurs when shared pointers are used to create reference cycles, such as can be seen in \autoref{lst:reference-cycle}.
+    This would also go against our aim of improving memory safety.
+
+    We therefore propose to have an analysis stage for checking for reference cycles.
+    If we identify a cycle, we do not perform any refactoring and leave the code as it was.
+    To identify cycles, we create a type graph of all the user defined types, and we can use depth first traversal to identify a cycle.
+    We do this by marking visited nodes in the graph as visited, and if during the traversal an adjacent node to the current node being analysed is already marked as visited, then a cycle exists.
+
+    \begin{listing}
+        \inputminted{c++}{code/reference-cycle.cpp}
+        \caption{The Person class is used to create a reference cycle. To deallocate the person field in bob, the alice object must be first deallocated. To do so, the bob object in must be deallocated first and so on, meaning the memory will never get deallocated.}
+        \label{lst:reference-cycle}
+    \end{listing}
+
+    \subsection{Benchmarking}\label{subsec:benchmarking}
+
+    There are several different benchmarks and tests we will perform to analyse the performance and correctness of the tool.
+    Firstly, it was mentioned in \autoref{subsec:shared-pointer-cycle-analysis}, we will benchmark our refactored programs against the originals for performance, so see if our refactoring efforts cause a significant detriments.
+    If the tools is effective enough, and depending on the code base, the refactorings will only include unique pointers, which will cause no performance detriments compared to using raw pointers.
+
+    Secondly, where automated test exist for the refactored programs, we will use them to ensure that the logic of the program is unchanged after refactoring.
+
+    Thirdly, we want to analyse how powerful our analysis is in identifying all opportunities in upgrading pointers to unique pointers, as our tool has to be conservative in some of its assumptions so will not be able to identify all opportunities.
+    We can measure the amount of unique pointers compared to the number of all pointers.
+    However, this number will fluctuate massively depending on what program it is run on, such as one handling resources such as files.
+    Therefore, the method we propose is to measure the performance of our tool against human refactored test cases, to see how much worse our analysis is compared to human effort.
+
+    % TODO - reference SPEC - find more better benchmarks
+    The programs that will be used for the benchmarking will be the subset of C++ programs in the SPEC CPU benchmark suite, as they will usually be pointer heavy, as well as allowing us to measure any possible performance detriments.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -332,6 +452,32 @@
     \section{Work Plan}\label{sec:work-plan}
 
     Show how you plan to organize your work, identifying intermediate deliverables and dates.
+
+    \begin{landscape}
+        \begin{figure}
+            \begin{ganttchart}{1}{14}
+                \gantttitle{Work Plan}{14} \ganttnewline
+                \gantttitlelist{1,...,14}{1} \ganttnewline
+                \ganttgroup{Complete Prototype}{1}{3} \ganttnewline
+                \ganttbar{Finish Rewriting Component}{1}{1} \ganttnewline
+                \ganttbar{Combine all components into final prototype}{2}{2} \ganttnewline
+                \ganttbar{Evaluate final prototype and find edge-cases}{3}{3} \ganttnewline
+                \ganttgroup{Benchmark and Data Acquisition}{2}{3}  \ganttnewline
+                \ganttbar{Find, setup and test benchmark suite}{2}{3} \ganttnewline
+                \ganttgroup{Analysis Algorithm Exploration}{4}{7} \ganttnewline
+                \ganttbar{Implement proposed interprocedural analysis}{4}{5}\ganttnewline
+                \ganttlink{elem3}{elem7}
+                \ganttbar{Evaluate tool with interprocedural analysis}{6}{6} \ganttnewline
+                \ganttbar{Implement cycle analysis and evaluate}{7}{7} \ganttnewline
+                \ganttgroup{Result Consolidation}{8}{14} \ganttnewline
+                \ganttbar{Research Paper Writeup}{8}{14} \ganttnewline
+            \end{ganttchart}
+            \caption{[A Gantt chart demonstrating the project schedule, broken down over the first
+            14 weeks of the year from Monday 11th January until Friday 16th April.
+            ]}
+            \label{fig:gantt}
+        \end{figure}
+    \end{landscape}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
