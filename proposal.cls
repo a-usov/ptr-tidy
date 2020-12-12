@@ -36,9 +36,7 @@
   {\bf \Huge \@title \par}%
   \vskip 2em%
   \huge
-  \begin{tabular}[t]{@{}l}%
-    \@author
-  \end{tabular}\par%
+  \@author
   \Large
   \vskip 2em%
   School of Computing Science\\
