@@ -8,7 +8,7 @@
 \usepackage[hyphens]{url}
 \usepackage{tikz}
 \usepackage{pgfgantt}
-\usepackage{lscape}
+\usepackage{rotating}
 \usepackage{hyperref}
 
 \setminted{frame=lines, linenos, autogobble}
@@ -96,7 +96,6 @@
     There also exists a \emph{shared pointer} for resources which may not have a single unique owner.
     Reference counting is used to ensure that after the last owner loses access to the resource, it will finally be freed.
     Shared pointers are suitable to be used in most situations, except in structures which have cyclic references \autoref{subsec:shared-pointer-cycle-analysis} and such reference counted pointers are used by default for all values in Python and Swift.
-
 
     \subsection{Do Smart Pointer Solve Memory Management?}\label{subsec:do-smart-pointer-solve-memory-management?}
 
@@ -484,31 +483,30 @@
 
     \subsection{Gantt Chart}\label{subsec:gantt-chart}
 
-    \begin{landscape}
-        \begin{figure}
-            \begin{ganttchart}{1}{14}
-                \gantttitle{Work Plan}{14} \ganttnewline
-                \gantttitlelist{1,...,14}{1} \ganttnewline
-                \ganttgroup{Complete Prototype}{1}{3} \ganttnewline
-                \ganttbar{Finish Rewriting Component}{1}{1} \ganttnewline
-                \ganttbar{Combine all components into final prototype}{2}{2} \ganttnewline
-                \ganttbar{Evaluate final prototype and find edge-cases}{3}{3} \ganttnewline
-                \ganttgroup{Benchmark and Data Acquisition}{2}{3}  \ganttnewline
-                \ganttbar{Find, setup and test benchmark suite}{2}{3} \ganttnewline
-                \ganttgroup{Analysis Algorithm Exploration}{4}{7} \ganttnewline
-                \ganttbar{Implement proposed interprocedural analysis}{4}{5}\ganttnewline
-                \ganttlink{elem3}{elem7}
-                \ganttbar{Evaluate tool with interprocedural analysis}{6}{6} \ganttnewline
-                \ganttbar{Implement cycle analysis and evaluate}{7}{7} \ganttnewline
-                \ganttgroup{Result Consolidation}{8}{14} \ganttnewline
-                \ganttbar{Research Paper Writeup}{8}{14} \ganttnewline
-            \end{ganttchart}
-            \caption{A Gantt chart demonstrating the project schedule, broken down over the first
-            14 weeks of the year from Monday 11th January until Friday 16th April.
-            }
-            \label{fig:gantt}
-        \end{figure}
-    \end{landscape}
+    \begin{figure}[!htb]
+        \rotatebox{90}{
+        \begin{ganttchart}{1}{14}
+            \gantttitle{Work Plan}{14} \ganttnewline
+            \gantttitlelist{1,...,14}{1} \ganttnewline
+            \ganttgroup{Complete Prototype}{1}{3} \ganttnewline
+            \ganttbar{Finish Rewriting Component}{1}{1} \ganttnewline
+            \ganttbar{Combine all components into final prototype}{2}{2} \ganttnewline
+            \ganttbar{Evaluate final prototype and find edge-cases}{3}{3} \ganttnewline
+            \ganttgroup{Benchmark and Data Acquisition}{2}{3}  \ganttnewline
+            \ganttbar{Find, setup and test benchmark suite}{2}{3} \ganttnewline
+            \ganttgroup{Analysis Algorithm Exploration}{4}{7} \ganttnewline
+            \ganttbar{Implement proposed interprocedural analysis}{4}{5}\ganttnewline
+            \ganttlink{elem3}{elem7}
+            \ganttbar{Evaluate tool with interprocedural analysis}{6}{6} \ganttnewline
+            \ganttbar{Implement cycle analysis and evaluate}{7}{7} \ganttnewline
+            \ganttgroup{Result Consolidation}{8}{14} \ganttnewline
+            \ganttbar{Research Paper Writeup}{8}{14} \ganttnewline
+        \end{ganttchart}}
+        \caption{A Gantt chart demonstrating the project schedule, broken down over the first
+        14 weeks of the year from Monday 11th January until Friday 16th April.
+        }
+        \label{fig:gantt}
+    \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
