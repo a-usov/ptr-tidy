@@ -47,7 +47,7 @@
     In another presentation at the Linux Security Summit it is shown that in several other top projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs~\footnote{\url{https://cve.mitre.org/}} attributed to issues with memory safety~\cite{Gaynor2020}.
     This is at industry-leading companies who are renowned for hiring top talent.
     Such memory safety vulnerabilities can be exploited, and due to new regulations such as the GDPR, these issues are more commonly exposed to the general public and punished by regulators.
-    An example is a fine of £20m fine for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}.
+    An example is a fine of £20m for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}.
 
     \subsection{Possible Solutions to Memory Management}\label{subsec:possible-solutions-to-memory-management}
 
@@ -83,8 +83,8 @@
     In \autoref{lst:manual-leak} we can see that when using a raw pointer, there are two cases in which the programmer will never free the allocated memory.
     Instead we can use \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create resource handles which automatically eliminate resource leaks with no, or very little added overhead.
     The first type of smart pointer are \emph{unique pointers} which have only a single unique owner at any time.
-    We can therefore fix the previous example in which we leak memory using a unique pointer, as can be seen in \autoref{lst:first-example-unique}.
-    In the comments of \autoref{lst:first-example-unique}, we can see all the locations where \emph{p} exits the scope of the function and where the compiler will automatically insert delete statements, now ensuring that the resource will never get leaked.
+    We can therefore fix the previous example in which we leak memory by using a unique pointer, as can be seen in \autoref{lst:first-example-unique}.
+    In the comments of \autoref{lst:first-example-unique}, we can see all the locations where the control flow exits the scope where \emph{p} is defined and where the compiler will automatically insert delete statements, now ensuring that the resource will never get leaked.
     The ownership of a unique pointer can be transferred between variables using \mintinline{c++}{std::move} which moves the ownership from one variable to another, making the original reference invalid.
 
     \begin{listing}
@@ -100,7 +100,7 @@
     \subsection{Do Smart Pointer Solve Memory Management?}\label{subsec:do-smart-pointer-solve-memory-management?}
 
     It would appear then that smart pointers could solve most of our memory management issues, but they were only introduced in the C++11 standard.
-    The C++ standards (\textit{versions}) before then did not have these language features, with older programs being written predominantly in the C++03 standard.
+    The C++ standards (\textit{versions}) before then did not have these language features, with older programs being written predominantly in the C++98 or C++03 standard.
     There remain many such called \emph{legacy} programs which have not upgraded to newer standards, and even then the programmer can choose not to utilise smart pointers in their code.
 
     \subsubsection{Research Aim}\label{subsubsec:reseach-aim}
@@ -156,7 +156,7 @@
 
     Clang was also found to be a good choice of library in terms of usability since documentation and examples are readily found.
     The AST that it produces is also rich in information and closely resembles the original code, as can be seen in \autoref{lst:code-to-ast-example}.
-    Information such as the line and column numbers are included, which makes programmatically rewriting source code extremely easy.
+    Information such as the line and column numbers are included, which makes programmatically rewriting source code easy.
 
     \begin{listing}
         \inputminted{c++}{code/code-to-ast.cpp}
@@ -261,7 +261,7 @@
     \end{figure}
 
     For each node, we associate a state of either \emph{NoEscape}, \emph{ArgEscape} or \emph{GlobalEscape}.
-    \emph{NoEscape} means that the object does not escape the method in which it was created
+    \emph{NoEscape} means that the object does not escape the method in which it was created.
     \emph{ArgEscape}, with respect to a method, means that the object escapes that method via the method arguments or return value,
     but does not escape the thread in which it is created.
     Finally, \emph{GlobalEscape} means that the object is regarded as escaping globally.
