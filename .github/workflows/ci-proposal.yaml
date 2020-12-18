@@ -16,9 +16,10 @@ jobs:
         with:
           root_file: proposal.tex
           latexmk_shell_escape: true
+          extra_system_packages: "py-pygments"
 
       - uses: actions/upload-artifact@v2
         if: success()
         with:
-          name: dissertation
+          name: proposal
           path: ./proposal.pdf

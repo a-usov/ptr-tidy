@@ -2,8 +2,8 @@
 \usepackage{graphicx}
 \usepackage[square,numbers]{natbib}
 \usepackage{listing}
-\usepackage[labelfont=bf]{caption}
-\usepackage[outputdir=out]{minted}
+\usepackage[labelfont=bf, font=small]{caption}
+\usepackage{minted}
 \usepackage{chngcntr}
 \usepackage[hyphens]{url}
 \usepackage{tikz}
@@ -11,7 +11,7 @@
 \usepackage{rotating}
 \usepackage{hyperref}
 
-\setminted{frame=lines, linenos, autogobble}
+\setminted{frame=lines, linenos, autogobble, breaklines}
 
 \begin{document}
 
@@ -37,9 +37,9 @@
 
     \subsection{Difficulties with Memory Management}\label{subsec:difficulties-with-memory-management}
 
-    Systems programming often involves memory management, that is requesting memory for the program to use by the operating system.
+    Systems programming often involves memory management, that is requesting memory from operating system to be used and managed by the program.
     This is done when the amount of memory that we need cannot be known at the time of compilation of the program.
-    However doing so creates the opportunity for a memory safety error~\cite{Dhurjati2003} and this means that correct memory management is a challenging problem.
+    However doing so creates the opportunity for memory safety errors~\cite{Dhurjati2003} which are notoriously challenging to avoid.
 
     \emph{How challenging one might ask?}
 
@@ -47,17 +47,17 @@
     In another presentation at the Linux Security Summit it is shown that in several other top projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs~\footnote{\url{https://cve.mitre.org/}} attributed to issues with memory safety~\cite{Gaynor2020}.
     This is at industry-leading companies who are renowned for hiring top talent.
     Such memory safety vulnerabilities can be exploited, and due to new regulations such as the GDPR, these issues are more commonly exposed to the general public and punished by regulators.
-    Such an example is a fine of £20m fine for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}.
+    An example is a fine of £20m fine for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}.
 
     \subsection{Possible Solutions to Memory Management}\label{subsec:possible-solutions-to-memory-management}
 
     Memory safety errors occur in languages that place the task of memory management with the programmer, such as C and C++.
-    However simply not using these languages is not an option since their unmanaged nature makes them highly performant, and therefore the best option for a system such as a web browser.
+    However simply not using these languages is not an option since their unmanaged nature makes them highly performant, and therefore the best option for systems such as a web browser.
 
     \emph{What can be done then to address this issue?}
 
     Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
-    Rust is a systems language that offers the same performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model also guarantee memory safety.
+    Rust is a systems language that offers similar performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model also guarantee memory safety.
     The rewriting of a program in a new language, namely from C++ to Rust, is a colossal undertaking, especially given that Rust has a reputation for being difficult to learn.
     We therefore propose an alternative partial solution to this problem.
 
@@ -74,59 +74,57 @@
 
     \begin{listing}
         \inputminted{c++}{code/manual-leak.cpp}
-        \caption{Example of memory leaks using manual management. Lines 4 and 5 show how the memory allocated on line 2 will never be freed since the control flow of the function is interrupted before we execute line 7.}
+        \caption{Example of memory leaks using manual management. Lines 4 and 5 show how the memory allocated on line 2 will never be freed since the control flow of the function is interrupted before we reach line 7 and free the memory}
         \label{lst:manual-leak}
     \end{listing}
 
     % TODO insert some information about heap vs stack
 
     In \autoref{lst:manual-leak} we can see that when using a raw pointer, there are two cases in which the programmer will never free the allocated memory.
-    Instead we can use \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create resource handles which automatically eliminate resource leaks with no added overhead.
+    Instead we can use \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create resource handles which automatically eliminate resource leaks with no, or very little added overhead.
     The first type of smart pointer are \emph{unique pointers} which have only a single unique owner at any time.
     We can therefore fix the previous example in which we leak memory using a unique pointer, as can be seen in \autoref{lst:first-example-unique}.
     In the comments of \autoref{lst:first-example-unique}, we can see all the locations where \emph{p} exits the scope of the function and where the compiler will automatically insert delete statements, now ensuring that the resource will never get leaked.
-    The ownership of a unique pointer can be transferred between variables using \mintinline{c++}{std::move} which moves the ownership from one variable to another, making the original owner invalid.
+    The ownership of a unique pointer can be transferred between variables using \mintinline{c++}{std::move} which moves the ownership from one variable to another, making the original reference invalid.
 
     \begin{listing}
         \inputminted{c++}{code/first-example-unique.cpp}
-        \caption{Example of using a unique pointer to manage memory. Note how the programmer no longer has to specify to manually delete the pointer as in \autoref{lst:manual-leak}, and how the compiler can find all cases where the resource needs to be freed in lines 4, 5 and 7, and will automatically insert delete statements there on compilation.}
+        \caption{Example of using a unique pointer to manage memory. Note how the programmer no longer has to specify to manually delete the pointer as in \autoref{lst:manual-leak}, and how the compiler can detect that on lines 4, 5 and 7 the variable $p$ leaves the scope and therefore needs to be freed. The compiler will automatically insert these delete statements during compilation.}
         \label{lst:first-example-unique}
     \end{listing}
 
-    The second type of smart pointer are \emph{shared pointers} which are used for resources which may not necessarily have a single unique owner and so several owners \emph{share} the resource.
+    The second type of smart pointer are \emph{shared pointers} which are used for resources which may not necessarily have a single unique owner and so several owners \emph{share} ownership to the resource.
     Reference counting~\cite{Collins1960} is used to ensure that after the last owner loses access to the resource, it will finally be freed.
     Shared pointers are suitable to be used in most situations and such reference counted pointers are used by default for all values in the Python and Swift languages.
 
     \subsection{Do Smart Pointer Solve Memory Management?}\label{subsec:do-smart-pointer-solve-memory-management?}
 
     It would appear then that smart pointers could solve most of our memory management issues, but they were only introduced in the C++11 standard.
-    The C++ standards (\textit{versions}) till then did not have these language features, with older programs being written predominantly in the C++03 standard.
+    The C++ standards (\textit{versions}) before then did not have these language features, with older programs being written predominantly in the C++03 standard.
     There remain many such called \emph{legacy} programs which have not upgraded to newer standards, and even then the programmer can choose not to utilise smart pointers in their code.
 
     \subsubsection{Research Aim}\label{subsubsec:reseach-aim}
 
     % TODO find reference of how much old code is in production
 
-    We therefore propose to create an automatic refactoring tool \emph{(ptr-tidy)}, that statically analyses C++ code and aims to refactor usage of raw pointers into smart pointers.
+    We therefore propose to create an automatic refactoring tool \emph{(ptr-tidy)}, that performs static analysis on C++ code and aims to refactor usage of raw pointers into smart pointers.
     It will involve a conservative analysis that first and foremost tries to identify raw pointers that only have a single unique owner at any point in the program.
-    These will be refactored into the previously mentioned unique pointers.
+    These will be refactored into unique pointers.
     If this cannot be guaranteed, then a more conservative refactoring to a shared pointer will be applied.
-    Given that the language standards are mostly backwards-compatible~\cite{Winters2020}, we aim to apply automatic refactoring without changing the runtime behaviour compared to the original programs.
+    We aim to apply automatic refactoring without changing the runtime behaviour compared to the original programs, which we believe will be possible given that C++ language standards are backwards-compatible to a high degree~\cite{Winters2020}.
 
     We use the term refactoring as this is one most familiar to programmers to convey a change in code that does not change its behaviour, but improves its the quality or maintainability.
     However, our work aligns more closely with the term \emph{source code rejuvenation}, as defined by \citet{Pirkelbauer2010}.
     This is because we exactly aim to replace outdated coding patterns with newer, higher-level abstractions, as well as fitting the notion that this tool would be applied once to a codebase, rather than be a reoccurring task.
     The two terms can be used interchangeably in the context of this paper, however we will exclusively use the term refactoring for simplicity.
 
-    % TODO reword section title - or move to proposed approach section
-
     \subsection{Research Questions}\label{subsec:research-questions}
 
-    We outline below the research questions we would like so answer alongside developing the tool.
-    Namely we would like answer the question of whether such a tool can truly improve C++ code by seeing if the tool can be used outside small examples on larger existing programs, as well as if the refactored results produce code which can be compiled and can be judged to be better.
-    Secondly, if the tool is able to do this, we want to evaluate how well the tool performs by analysing the performance of the analysis algorithms.
+    We outline below the research questions we would like to answer alongside developing the tool.
+    Namely we would like to answer the question of whether such a tool can truly improve C++ code by seeing if the tool can be used outside small examples on larger existing programs, as well as if the refactored results produce code which can be compiled and can be judged to be better.
+    Secondly, if the tool is able to do this, we want to evaluate how well the tool performs by analysing the effectiveness of the analysis algorithms.
 
-    \emph{RQ1: Can the translation of raw pointers into smart pointers be used to make existing C++ code more modern and extendable?}
+    \emph{RQ1: Can the translation of raw pointers into smart pointers be used to make existing C++ code more modern, safe and extendable?}
 
     \emph{RQ2: Can the tool reliably identify situations in which unique pointers should be used?}
 
@@ -142,11 +140,11 @@
     \subsection{Clang and LLVM}\label{subsec:clang-and-llvm}
 
     C++ as a language is enormous, and the first capability our tool will need is to be able to parse (\textit{read}) C++ code.
-    Doing this ourselves would be an undertaking that would likely span longer than the time span of the whole project, therefore it was decided early to use an existing parser.
+    Doing this ourselves would be an undertaking that would surely span longer than the time span of the whole project, therefore it was decided early to use an existing parser.
     The most capable and mature C++ parsers will naturally be the parsers used by the most popular compilers.
     This leaves us therefore with a choice between GCC~\footnote{\url{https://gcc.gnu.org/}} and Clang~\footnote{\url{https://clang.llvm.org/}}.
     The literature~\cite{Duffy2014} is fairly clear on the fact that the design of GCC makes it unsuitable for integration with other projects.
-    Clang on the other hand allows us access to the Clang abstract syntax tree (AST) and parser internals through standard design patterns such as consumers and visitors.
+    Clang on the other hand allows us access to the Clang abstract syntax tree (AST) and parser internals via a standard API such as consumers and visitors.
 
     Clang is a front-end to the LLVM framework~\cite{Lattner2004} and transforms C++ code into the LLVM intermediate representation (IR).
     The LLVM IR is a language-independent, static single assignment (SSA)~\cite{Rosen1988} representation of the program and will be the target on which we apply our analysis to identify refactoring opportunities.
@@ -170,7 +168,7 @@
 
     \subsection{Pointer Analysis}\label{subsec:pointer-analysis}
 
-    The main capability of the tool is to be able to identify what the maximum number of owners a pointer has at all points of the program execution for all pointers in any given program.
+    The main capability of the tool is to be able to identify the maximum number of owners a pointer has at all points of the program execution for all pointers in any given program.
     If this number for a given raw pointer is one, then we can go about converting all usages of that raw pointer into a unique pointer.
     If it is more than one then the invariants of a unique pointer cannot be satisfied, and we instead have to use the less performant shared smart pointer.
     A key intuition, mentioned in \autoref{subsec:using-smart-pointers-for-memory-management}, is that a shared pointer can be substituted for most uses of a raw pointer, making it the default fallback.
@@ -181,11 +179,11 @@
 
     We can formalise the notion of copying a pointer by introducing the concept of \emph{escape analysis}.
     Escape analysis is used to determine whether an object \emph{escapes} or is accessible from outside the method or thread that created the object~\cite{Choi1999}.
-    It has been used in languages such as Java~\cite{Choi1999} to determine whether an object that is created in a method escapes, and if it does not, meaning it is only used locally in the method, then it can be allocated on the stack rather than the heap as a performance optimisation.
-    % TODO pin footnote to specific commit possibly
+    It has been used in languages such as Java~\cite{Choi1999} to determine whether an object which is created within a method escapes.
+    If it does not, meaning it is only used locally in the method, then it can be allocated on the stack rather than the heap as a performance optimisation.
     Clang also uses escape analysis for a similar kind of optimisation~\footnote{\url{https://github.com/llvm/llvm-project/blob/master/llvm/lib/Analysis/CaptureTracking.cpp}} and also defines the term \emph{pointer capture}.
     A pointer value is captured if the function makes a copy of any part of the pointer that outlives the call.
-    We can then see that any pointer that escapes must also be captured since there is no way to refer to an object without being able to determine its address, but not visa versa.
+    We can then see that any pointer that escapes must also be captured since there is no way to refer to an object without being able to determine its address, but not every captured pointer also escapes.
     In \autoref{lst:capture-example} we can see an example where a pointer may be captured but does not escape and in \autoref{lst:escape-example} we see an example of an escaped pointer.
 
     \begin{listing}
@@ -196,7 +194,7 @@
 
     \begin{listing}
         \inputminted{c++}{code/escape-example.cpp}
-        \caption{The pointer is both captured and escapes since the pointer and its value outlive the call of the function and it is accessible by any other method or thread since it is copied to a global variable}
+        \caption{The pointer is both captured and escapes since the pointer and the value it points to outlive the call of the function and become accessible by any other method or thread as it is copied to a global variable}
         \label{lst:escape-example}
     \end{listing}
 
@@ -209,22 +207,19 @@
 
     \subsubsection{Escape Analysis Algorithms}\label{subsubsec:escape-analysis-algorithms}
 
-    Now that we have defined how escape analysis can be used to identify areas of refactoring, we now need to identify a suitable algorithm.
-
-    There has been extensive research on escape analysis for Java, where escape analysis is used to determine whether a object escapes the current method.
-    If it can be proven that the object does not escape the method, then it is local to the method invocation and it can be allocated on the stack rather than as a heap variable (the default for all Java objects).
+    Now that we have defined how escape analysis can be used to identify areas of refactoring, we need to identify a suitable algorithm.
 
     The escape analysis algorithm described by \citet{Choi1999} is used as the default escape analysis algorithm in the Oracle Java Virtual Machine implementation~\footnote{\url{https://docs.oracle.com/en/java/javase/15/vm/java-hotspot-virtual-machine-performance-enhancements.html}} and it is widely cited so it forms the basis of our investigation.
     Due to how similar Java is to C++ and Go in terms of their object-oriented features, it means we can also analyse the escape algorithms used in the Clang and Go compilers.
 
     \citet{Choi1999} introduce the abstraction of a \emph{connection graph} which we will see is also used in other implementations.
     The connection graph captures relationships between heap-allocated objects and object references.
-    The graph is used to perform reachability analysis to determine if an is local to a thread or method.
+    The graph is used to perform reachability analysis to determine if an object is local to a thread or method.
     Most importantly, this abstraction allows for a powerful interprocedural analysis to be performed.
 
     The CG is a directed graph $CG = (N_{o} \cup N_{r}, E_{p} \cup E_{d} \cup E_{f})$ where $N_{o}$ is the set of objects.
     $N_{r}$ is the set of reference nodes which include local variables, parameters, fields and global reference variables.
-    $E_{p}$ is the set of points-to edges which exists between a reference node which points to object node.
+    $E_{p}$ is the set of points-to edges which exist between a reference node that points to object node.
     $E_{d}$ is the set of deferred edges, where a deferred edge from one node $p$ to node $q$ signifies it points to what $q$ points to.
     $E_{f}$ is the set of of all edges between objects that are a field of another object.
     We can see in \autoref{fig:connection-graph-choi} how a connection graph would be constructed for simple Java statements.
@@ -302,11 +297,11 @@
     Ada or its subset language SPARK are used extensively in certain industries to create verifiable programs for critical systems such as in avionics.
     It is perhaps most well-know for being used in the F-22 fighter aircraft~\cite{Malas1997}, however the use of Ada for those systems show its other weakness in productivity time as it was the cause for several delays in the project, and so it largely remains unused in areas which do not call for such meticulous safety.
 
-    Rust has been the most popular language in attractive widespread adoption as a systems language.
-    Its popularity could be quantified by considering that it is being considered for usage in writing Linux kernel modules~\footnote{\url{https://lore.kernel.org/lkml/CAKwvOdmuYc8rW_H4aQG4DsJzho=F+djd68fp7mzmBp3-wY--Uw@mail.gmail.com/T}}, which cannot be said for C++.
+    Rust has been the most popular language in attracting widespread adoption as a systems language.
+    Its popularity could be quantified by considering that it is being considered for use in writing Linux kernel modules~\footnote{\url{https://lore.kernel.org/lkml/CAKwvOdmuYc8rW_H4aQG4DsJzho=F+djd68fp7mzmBp3-wY--Uw@mail.gmail.com/T}}, which cannot be said for C++.
     Following the advice given by many that most systems programs should be written in Rust from now on, we see a potential future usage of our work in the creation of a C++ to Rust transpiler.
 
-    Whilst the automatic refactoring of raw pointers into smart pointers solves some memory issues, the language still offers other ways to invalidate memory safety.
+    Whilst the automatic refactoring of raw pointers into smart pointers solves some memory issues, the language still offers other ways to break memory safety.
     Equivalent idiomatic Rust would be able to find some of these other errors at compile time.
     A C++ to Rust transpiler would be a much larger undertaking, however we can envision how our project could be helpful.
     Rust affine types~\cite{Balasubramanian2017} are semantically equivalent to C++ unique pointers, in that all values have a single unique owner at any point.
@@ -314,10 +309,10 @@
 
     \subsubsection{Garbage Collected Languages}
 
-    Garbage collected languages encompass some of the most popular programming languages such as Java and Python.
+    Garbage collected languages encompass some of the most popular programming languages such as Java or Go.
     They are considered to be simpler languages than C++ since they remove the need for manual memory management by the programmer.
     In C++, if memory is improperly freed, it gets leaked and can eventually cause out of memory errors.
-    Garbage collectors instead run periodically and scan the memory of the program to find objects in memory which were allocated but are no longer used anymore, i.e leaked and then free the leaked objects.
+    Garbage collectors instead run periodically and scan the memory of the program to find objects in memory which were allocated but are no longer used anymore and then free the leaked objects.
     Languages such as Java~\cite{Tauro2012} use this fully by allocating almost every object on the heap and not freeing any object, instead relying on the garbage collector to clean up.
     They are therefore considered to be easier and more productive to use.
 
@@ -336,11 +331,11 @@
     We believe research in this area is going to increase, as languages move and evolve much quicker than can be supported in enterprise environments, which is supported by the fact that other relevant work has been completed on this subject.
 
     First and foremost, we have evidence that this is a problem that actually exists in industry through a paper by \citet{Wright2013} which describes a tool used in Google for running such rejuvenations across a large codebase and shows an example of running a simple rejuvenation of upgrading an API call.
-    They only uses Clang for the parsing of code into an AST and traversing the tree to identify and perform simple refactorings.
+    They only use Clang for the parsing of code into an AST and traversing the tree to identify and perform simple refactorings.
     This allows for less complex refactorings, however it also allows for a flexible design to implement different refactorings using the same tool, rather than the focus we have for a single specific refactoring goal.
 
     Secondly, there has been separate academic research into rejuvenation tools such as the work by \citet{Huck2016} and \citet{Kumar2012}.
-    The former also uses the Clang and AST driven approach that we have described in \autoref{subsec:clang-and-llvm} and by \citet{Wright2013}, whilst the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
+    The former also uses the Clang and AST driven approach that we have described in \autoref{subsec:clang-and-llvm} and by \citet{Wright2013}, while the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
     We have not evaluated IPR as a representation to use instead of the Clang AST, but we can however comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation that Clang has, as well as it being the choice of several other successful projects leads us to believe that we will not lose any effectiveness in our use of it.
 
 
@@ -349,18 +344,17 @@
 
     \section{Proposed Approach}\label{sec:proposed-approach}
 
-    % TODO rename section to something better
-
     \subsection{Current Progress}\label{subsec:current-progress}
 
     As mentioned in \autoref{subsec:clang-and-llvm}, we plan on using Clang for parsing C++ code into an AST and LLVM IR for the analysis.
-    We can employ the visitor pattern to traverse the AST and look for nodes of interest, such as variable declaration nodes.
+    We can traverse the AST and look for nodes of interest, such as variable declaration nodes.
     Given a node in the AST, we can find its equivalent declaration in the IR\@.
-    This is mainly possible since we can see from comparing \autoref{lst:code-to-ast-example} and \autoref{lst:code-to-ast-ir} that the variable names can matched from the AST to the IR\@.
+    This is mainly possible since we can see in \autoref{lst:code-to-ast-ir} that the variable names can be matched from the code and therefore AST to the IR\@.
 
     \begin{listing}
-        \inputminted[fontsize=\footnotesize, breaklines]{llvm}{code/code-to-ast-summary.ll}
-        \caption{The LLVM IR representation of the program in \autoref{lst:code-to-ast-example}. Listing has been summarized for clarity.}
+        \inputminted{c++}{code/code-to-ast.cpp}
+        \inputminted[fontsize=\footnotesize]{llvm}{code/code-to-ast-summary.ll}
+        \caption{The LLVM IR representation of a small C++ code snippet. Listing has been summarized for clarity.}
         \label{lst:code-to-ast-ir}
     \end{listing}
 
@@ -407,7 +401,7 @@
     This design has been already used to create a prototype of the tool~\footnote{\url{https://github.com/a-usov/ptr-tidy/tree/c44e67022ba5fa2b3a541f4e730230c1e378e46e}}.
     The prototype shows that combining the AST and IR is viable and uses the already implemented LLVM escape analysis on variable declarations.
     It also shows how Clang library allows for easy refactoring since the AST stores all source text and line numbers, making text substitution trivial.
-    Substitution of AST nodes rather than source text substitution has not been explored, however this is as documentation states that generally the AST should remain immutable.
+    Substitution of AST nodes rather than source text substitution has not been explored, however this because Clang documentation states that generally the AST should remain immutable.
 
     The prototype does not currently combine the analysis with the refactoring, which will be the next logical step.
     The source refactoring is also not fully implemented, and is currently only a proof-of-concept.
@@ -438,7 +432,7 @@
 
     In \autoref{fig:connection-graph-choi} we can see that when we copy a pointer, a new reference node with a deferred edge is created, pointing to the original pointer.
     Therefore if each reference node has at most one incoming edge, then we know that each pointer is copied at most once, and therefore only transfers ownership once.
-    This therefore means that the value will have at most one unique throughout program execution.
+    This therefore means that the value will have at most one unique owner throughout program execution.
     This relies on careful modeling where using pointers as function arguments is modelled as the creation of new reference nodes, which can be correctly modelled in C++ as it has pass-by-value semantics.
 
     Such an algorithm should give us better results as it will be able to determine whether pointers which are returned from functions escape, as this is a case which the intraprocedural analysis cannot determine and has to take a conservative approach in assuming it escapes.
