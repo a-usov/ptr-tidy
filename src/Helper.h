@@ -23,8 +23,7 @@ inline std::string getMangledName(clang::ASTContext *context, const clang::Named
   }
 }
 
-inline llvm::Value *getLocalValue(const clang::VarDecl *var, const llvm::Module &module,
-                                  clang::ASTContext *context) {
+inline llvm::Value *getLocalValue(const clang::VarDecl *var, const llvm::Module &module, clang::ASTContext *context) {
   auto *parentFunctionAST = dyn_cast<clang::FunctionDecl>(var->getParentFunctionOrMethod());
   auto *parentFunctionIR = module.getFunction(getMangledName(context, parentFunctionAST));
   auto *valueSymbol = parentFunctionIR->getValueSymbolTable();

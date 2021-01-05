@@ -5,11 +5,13 @@
 #### First install clang, llvm and other dependancies. This will depend on your distribution.
 
 ##### Arch
+
 ```sh
 pacman -S clang llvm gtest boost
 ```
 
 ##### Ubuntu
+
 ```sh
 apt-get install clang libclang-dev libboost-dev libgtest-dev
 ```

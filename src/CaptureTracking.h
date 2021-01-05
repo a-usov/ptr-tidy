@@ -9,9 +9,9 @@
 // This file contains routines that help determine which pointers are captured.
 //
 //===----------------------------------------------------------------------===//
+#pragma once
 
-#ifndef LLVM_ANALYSIS_CAPTURETRACKING_H
-#define LLVM_ANALYSIS_CAPTURETRACKING_H
+#include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
 
@@ -35,10 +35,7 @@ unsigned getDefaultMaxUsesToExploreForCaptureTracking();
 /// MaxUsesToExplore specifies how many uses the analysis should explore for
 /// one value before giving up due too "too many uses". If MaxUsesToExplore
 /// is zero, a default value is assumed.
-bool PointerMayBeCaptured(const Value *V, bool ReturnCaptures,
-                          bool StoreCaptures,
-                          unsigned MaxUsesToExplore = 0);
-
+bool PointerMayBeCaptured(const Value *V, bool ReturnCaptures, bool StoreCaptures, unsigned MaxUsesToExplore = 0);
 
 /// This callback is used in conjunction with PointerMayBeCaptured. In
 /// addition to the interface here, you'll need to provide your own getters
@@ -74,8 +71,9 @@ struct CaptureTracker {
 /// MaxUsesToExplore specifies how many uses the analysis should explore for
 /// one value before giving up due too "too many uses". If MaxUsesToExplore
 /// is zero, a default value is assumed.
-void PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker,
-                          unsigned MaxUsesToExplore = 0);
-} // end namespace llvm
+void PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker, unsigned MaxUsesToExplore = 0);
 
-#endif
+/// Returns true if the pointer is to a function-local object that never
+/// escapes from the function.
+bool isNonEscapingLocalObject(const Value *V, SmallDenseMap<const Value *, bool, 8> *IsCapturedCache = nullptr);
+} // end namespace llvm

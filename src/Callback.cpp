@@ -24,8 +24,8 @@ void CountCallback::run(const MatchFinder::MatchResult &result) {
   }
 
   if (var->hasGlobalStorage()) {
-    errs() << var->getSourceRange().printToString(*result.SourceManager)
-           << " Not processing global variable " << var->getName() << "\n";
+    errs() << var->getSourceRange().printToString(*result.SourceManager) << " Not processing global variable "
+           << var->getName() << "\n";
     return;
   }
 
@@ -38,8 +38,7 @@ void CountCallback::run(const MatchFinder::MatchResult &result) {
   Value *value = getLocalValue(var, module, result.Context);
 
   auto isCaptured = PointerMayBeCaptured(value, true, true);
-  errs() << var->getSourceRange().printToString(*result.SourceManager) << " Variable "
-         << var->getName();
+  errs() << var->getSourceRange().printToString(*result.SourceManager) << " Variable " << var->getName();
   if (isCaptured) {
     errs() << " is captured\n";
   } else {
@@ -48,8 +47,7 @@ void CountCallback::run(const MatchFinder::MatchResult &result) {
 
   if (var->getType()->isPointerType()) {
     std::string newType = "std::shared_ptr<" + var->getType()->getPointeeType().getAsString() + ">";
-    m_rewriter.ReplaceText(SourceRange(var->getTypeSpecStartLoc(), var->getTypeSpecEndLoc()),
-                           newType);
+    m_rewriter.ReplaceText(SourceRange(var->getTypeSpecStartLoc(), var->getTypeSpecEndLoc()), newType);
 
     if (var->hasInit()) {
       auto init = var->getInit();

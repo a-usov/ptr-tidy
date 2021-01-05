@@ -19,8 +19,7 @@ IrHandler::IrHandler(const llvm::StringRef codePath) {
   input << "-triple=" << llvm::sys::getDefaultTargetTriple();
   args.emplace_back(input.str().c_str());
 
-  CompilerInvocation::CreateFromArgs(Clang.getInvocation(), makeArrayRef(args),
-                                     Clang.getDiagnostics());
+  CompilerInvocation::CreateFromArgs(Clang.getInvocation(), makeArrayRef(args), Clang.getDiagnostics());
 
   EmitLLVMOnlyAction action(&m_context);
   Clang.ExecuteAction(action);
