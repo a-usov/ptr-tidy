@@ -1,7 +1,10 @@
 #pragma once
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Mangle.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 inline void exit(const llvm::StringRef &message) {
   llvm::errs() << message << "\n";
@@ -28,4 +31,9 @@ inline llvm::Value *getLocalValue(const clang::VarDecl *var, const llvm::Module 
   auto *parentFunctionIR = module.getFunction(getMangledName(context, parentFunctionAST));
   auto *valueSymbol = parentFunctionIR->getValueSymbolTable();
   return valueSymbol->lookup(var->getName());
+}
+
+inline std::optional<std::unique_ptr<llvm::MemoryBuffer>> getFile(const llvm::StringRef name) {
+  auto sourceFileOrError = llvm::MemoryBuffer::getFile(name);
+  return sourceFileOrError ? std::make_optional(std::move(sourceFileOrError.get())) : std::nullopt;
 }
