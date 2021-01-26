@@ -1,14 +1,13 @@
 #include "IrHandler.h"
-#include <sstream>
-
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/Host.h"
+#include <sstream>
 
 using namespace clang;
 using namespace llvm;
 
-IrHandler::IrHandler(const llvm::StringRef codePath) {
+IrHandler::IrHandler(const StringRef codePath) {
   CompilerInstance Clang;
   Clang.createDiagnostics();
 
@@ -20,8 +19,7 @@ IrHandler::IrHandler(const llvm::StringRef codePath) {
   input << "-triple=" << llvm::sys::getDefaultTargetTriple();
   args.emplace_back(input.str().c_str());
 
-  CompilerInvocation::CreateFromArgs(Clang.getInvocation(), makeArrayRef(args),
-                                     Clang.getDiagnostics());
+  CompilerInvocation::CreateFromArgs(Clang.getInvocation(), makeArrayRef(args), Clang.getDiagnostics());
 
   EmitLLVMOnlyAction action(&m_context);
   Clang.ExecuteAction(action);
