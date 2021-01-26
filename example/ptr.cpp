@@ -7,6 +7,6 @@ int *test(int *b) {
 
 int main() {
   int b = 2;
-  int *c = &a;
+  int *c = new int(0);
   test(&b);
 }

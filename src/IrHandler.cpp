@@ -7,7 +7,7 @@
 using namespace clang;
 using namespace llvm;
 
-IrHandler::IrHandler(const llvm::StringRef codePath) {
+IrHandler::IrHandler(const StringRef codePath) {
   CompilerInstance Clang;
   Clang.createDiagnostics();
 

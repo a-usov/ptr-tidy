@@ -13,14 +13,14 @@ SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
 find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
 
-add_executable(ptr-tidy src/main.cpp src/Callback.cpp src/IrHandler.cpp src/AstHandler.cpp src/CaptureTracking.cpp)
+add_executable(ptr-tidy src/main.cpp src/Callback.cpp src/IrHandler.cpp src/AstHandler.cpp src/CaptureTracking.cpp src/PtrRewriter.cpp)
 
 add_subdirectory(test)
 
 foreach (target IN ITEMS ptr-tidy runTests)
     set_target_properties("${target}" PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED True CXX_EXTENSIONS False INTERPROCEDURAL_OPTIMIZATION True)
     target_compile_definitions("${target}" PUBLIC ${LLVM_DEFINITIONS})
-    target_compile_options("${target}" PUBLIC "-fno-rtti" "-fno-exceptions" PRIVATE "-Wall" "-Wextra" "-Wpedantic" "-Wno-unused-parameter")
+    target_compile_options("${target}" PUBLIC "-fno-rtti" PRIVATE "-Wall" "-Wextra" "-Wpedantic" "-Wno-unused-parameter")
     target_include_directories("${target}" PUBLIC "${CLANG_INCLUDE_DIRS}" "${Boost_INCLUDE_DIRS}")
     target_link_libraries("${target}" PUBLIC clang-cpp LLVM)
 endforeach ()
