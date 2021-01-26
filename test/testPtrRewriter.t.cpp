@@ -269,3 +269,37 @@ TEST(PtrRewriterTest, InitialisationDeferredChanged) {
             "void test(){std::shared_ptr<int> a; a = std::make_shared<int>(2); std::shared_ptr<int> b; b = "
             "std::make_shared<int>(a);}");
 }
+
+TEST(PtrRewriterTest, InitialisationThenDeletion) {
+  PtrRewriter rewriter;
+
+  class TestCallback : public MatchFinder::MatchCallback {
+    PtrRewriter *rewriter;
+
+    void run(const MatchFinder::MatchResult &result) override {
+      rewriter->initialise(*result.SourceManager, result.Context->getLangOpts());
+
+      auto var = result.Nodes.getNodeAs<VarDecl>("");
+
+      if (var->isImplicit()) {
+        return;
+      }
+      rewriter->changeDeclaration(var);
+      rewriter->changeInit(var);
+      rewriter->removeDelete(var);
+    }
+
+  public:
+    explicit TestCallback(PtrRewriter *ptrRewriter) : rewriter(ptrRewriter){};
+  };
+
+  TestCallback callback{&rewriter};
+  MatchFinder Finder;
+
+  Finder.addMatcher(varDecl().bind(""), &callback);
+  std::unique_ptr<FrontendActionFactory> Factory(newFrontendActionFactory(&Finder));
+  runToolOnCode(Factory->create(), "void test(){int *a = new int(2); delete a;}");
+
+  ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
+            "void test(){std::shared_ptr<int> a = std::make_shared<int>(2); }");
+}

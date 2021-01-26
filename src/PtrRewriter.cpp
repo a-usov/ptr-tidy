@@ -87,3 +87,31 @@ void PtrRewriter::rewriteInit(const VarDecl *decl, const Expr *init) {
   std::string newInit = (boost::format(make_shared) % type % value).str();
   m_rewriter.ReplaceText(init->getSourceRange(), newInit);
 }
+
+void PtrRewriter::removeDelete(const clang::VarDecl *var) {
+  using namespace clang::ast_matchers;
+  using namespace clang::tooling;
+
+  class TestCallback : public MatchFinder::MatchCallback {
+    PtrRewriter *me;
+    const VarDecl *m_initial;
+
+    void run(const MatchFinder::MatchResult &result) override {
+      auto del = result.Nodes.getNodeAs<CXXDeleteExpr>("");
+      if (auto declRef = dyn_cast<DeclRefExpr>(del->getArgument()->IgnoreImpCasts());
+          declRef && declRef->getDecl()->getID() == m_initial->getID()) {
+        me->m_rewriter.RemoveText(SourceRange(del->getBeginLoc(), del->getEndLoc().getLocWithOffset(1)));
+      }
+    }
+
+  public:
+    TestCallback(PtrRewriter *ptrRewriter, const VarDecl *var) : me(ptrRewriter), m_initial(var){};
+  };
+
+  TestCallback callback{this, var};
+  MatchFinder Finder;
+
+  Finder.addMatcher(cxxDeleteExpr().bind(""), &callback);
+  std::unique_ptr<FrontendActionFactory> Factory{newFrontendActionFactory(&Finder)};
+  runToolOnCode(Factory->create(), m_rewriter.getSourceMgr().getBufferData(m_rewriter.getSourceMgr().getMainFileID()));
+}

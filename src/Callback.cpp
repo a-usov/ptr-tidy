@@ -35,4 +35,5 @@ void CountCallback::run(const clang::ast_matchers::MatchFinder::MatchResult &res
 
   m_ptrRewriter.changeDeclaration(var);
   m_ptrRewriter.changeInit(var);
+  m_ptrRewriter.removeDelete(var);
 }

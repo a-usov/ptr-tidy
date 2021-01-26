@@ -27,4 +27,6 @@ public:
   void changeDeclaration(const clang::VarDecl *var);
 
   void changeInit(const clang::VarDecl *var);
+
+  void removeDelete(const clang::VarDecl *var);
 };
