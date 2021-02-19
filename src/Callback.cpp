@@ -1,39 +1,57 @@
 #include "Callback.h"
 #include "CaptureTracking.h"
-#include "Helper.h"
+#include "clang/AST/Mangle.h"
+#include "llvm/IR/ValueSymbolTable.h"
 
-using namespace llvm;
-using namespace clang;
-
-void CountCallback::run(const clang::ast_matchers::MatchFinder::MatchResult &result) {
+void Callback::run(const clang::ast_matchers::MatchFinder::MatchResult &result) {
   m_ptrRewriter.initialise(*result.SourceManager, result.Context->getLangOpts());
 
-  auto var = result.Nodes.getNodeAs<VarDecl>("");
-  if (!var || var->hasGlobalStorage() || var->isImplicit() || !var->getType()->isPointerType()) {
+  const auto var = result.Nodes.getNodeAs<clang::VarDecl>("");
+
+  if (!checkVarValid(var)) {
     return;
   }
 
-  auto moduleOpt = m_irHandler.getModule();
-  if (!moduleOpt) {
-    exit("Could not get IR module");
-  }
-  auto &module = moduleOpt.get();
-  auto value = getLocalValue(var, module, result.Context);
-
-  auto isNonEscape = isNonEscapingLocalObject(value, nullptr);
-
-  errs() << var->getSourceRange().printToString(*result.SourceManager) << " Variable " << var->getName();
-  if (!isNonEscape) {
-    errs() << " escapes\n";
+  if (const auto name = result.SourceManager->getFilename(var->getLocation()); name != m_path) {
     return;
   }
-  errs() << " does not escape\n";
 
-  // TODO - we dont always change return type
-  auto function = dyn_cast<FunctionDecl>(var->getParentFunctionOrMethod());
-  m_ptrRewriter.changeFunctionReturn(function);
+  const auto irValue = getIRValue(var, m_module.get(), result.Context);
 
-  m_ptrRewriter.changeDeclaration(var);
-  m_ptrRewriter.changeInit(var);
-  m_ptrRewriter.removeDelete(var);
+  llvm::errs() << var->getSourceRange().printToString(*result.SourceManager) << " Variable " << var->getName();
+  if (!isNonEscapingLocalObject(irValue, nullptr)) {
+    llvm::errs() << " escapes\n";
+    return;
+  }
+  llvm::errs() << " does not escape\n";
+
+  m_ptrRewriter.rewrite(var);
+}
+
+// We want to check its a local pointer that is in the original source, amongst other things
+bool checkVarValid(const clang::VarDecl *var) {
+  return (var && !var->hasGlobalStorage() && !var->isImplicit() && var->getType()->isPointerType() &&
+          !var->getName().empty());
+}
+
+std::string getFunctionMangledName(clang::ASTContext *context, const clang::FunctionDecl *namedDecl) {
+  const auto mangler = context->createMangleContext(&context->getTargetInfo());
+
+  if (mangler->shouldMangleDeclName(namedDecl)) {
+    std::string mangledName;
+    llvm::raw_string_ostream mangledNameStream(mangledName);
+    mangler->mangleName(namedDecl, mangledNameStream);
+    mangledNameStream.flush();
+
+    return mangledName;
+  } else {
+    return namedDecl->getNameAsString();
+  }
+}
+
+const llvm::Value *getIRValue(const clang::VarDecl *var, const llvm::Module *module, clang::ASTContext *context) {
+  const auto parentFunctionAST = llvm::dyn_cast<clang::FunctionDecl>(var->getParentFunctionOrMethod());
+  const auto parentFunctionIR = module->getFunction(getFunctionMangledName(context, parentFunctionAST));
+  const auto valueSymbol = parentFunctionIR->getValueSymbolTable();
+  return valueSymbol->lookup(var->getName());
 }

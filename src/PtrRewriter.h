@@ -1,32 +1,35 @@
 #pragma once
 
-#include "boost/format.hpp"
 #include "clang/AST/Decl.h"
 #include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/Tooling/Tooling.h"
 
 class PtrRewriter {
-private:
+  clang::tooling::ClangTool &m_tool;
   clang::Rewriter m_rewriter;
+  bool m_initialised = false;
 
-  const std::string shared_ptr = "std::shared_ptr<%1%> ";
-  const std::string make_shared = "std::make_shared<%1%>(%2%)";
-  const std::string unique_ptr = "std::unique_ptr<%1%> ";
-  const std::string make_unique = "std::make_unique<%1%>(%2%)";
+  const char *shared_ptr = "std::shared_ptr<{0}> ";
+  const char *make_shared = "std::make_shared<{0}>({1})";
+  const char *unique_ptr = "std::unique_ptr<{0}> ";
+  const char *make_unique = "std::make_unique<{0}>({1})";
 
-  void handleDeferredInit(const clang::VarDecl *initial);
+  void rewriteFunctionReturn(const clang::FunctionDecl *function);
 
-  void rewriteInit(const clang::VarDecl *decl, const clang::Expr *init);
+  void rewriteDeclaration(const clang::VarDecl *var);
+
+  void rewriteInit(const clang::VarDecl *var);
+  void rewriteInit(const clang::VarDecl *var, const clang::Expr *init);
+  void rewriteDeferredInit(const clang::VarDecl *var);
+
+  void removeDelete(const clang::VarDecl *var);
 
 public:
-  clang::Rewriter &getRewriter() { return m_rewriter; }
+  explicit PtrRewriter(clang::tooling::ClangTool &tool) : m_tool(tool) {}
 
   void initialise(clang::SourceManager &sourceManager, const clang::LangOptions &langOptions);
 
-  void changeFunctionReturn(const clang::FunctionDecl *function);
+  void rewrite(const clang::VarDecl *var);
 
-  void changeDeclaration(const clang::VarDecl *var);
-
-  void changeInit(const clang::VarDecl *var);
-
-  void removeDelete(const clang::VarDecl *var);
+  [[nodiscard]] const clang::Rewriter &getRewriter() const { return m_rewriter; }
 };

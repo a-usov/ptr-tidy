@@ -1,34 +1,48 @@
 #include "IrHandler.h"
+#include "Helper.h"
 #include "clang/CodeGen/CodeGenAction.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "llvm/Support/Host.h"
-#include <sstream>
 
-using namespace clang;
-using namespace llvm;
+// Need these custom classes to be able to extract module after using ClangTool with action factory
+class EmitLLVMAction : public clang::EmitLLVMOnlyAction {
+  std::vector<std::unique_ptr<llvm::Module>> &m_modules;
 
-IrHandler::IrHandler(const StringRef codePath) {
-  CompilerInstance Clang;
-  Clang.createDiagnostics();
+public:
+  explicit EmitLLVMAction(std::vector<std::unique_ptr<llvm::Module>> &modules, llvm::LLVMContext &context)
+      : clang::EmitLLVMOnlyAction(&context), m_modules(modules) {}
 
-  std::vector<const char *> args;
+  void EndSourceFileAction() override {
+    CodeGenAction::EndSourceFileAction();
 
-  args.emplace_back(codePath.data());
+    m_modules.emplace_back(takeModule());
+  }
+};
 
-  std::ostringstream input;
-  input << "-triple=" << llvm::sys::getDefaultTargetTriple();
-  args.emplace_back(input.str().c_str());
+class EmitLLVMActionFactory : public clang::tooling::FrontendActionFactory {
+  std::vector<std::unique_ptr<llvm::Module>> &m_modules;
+  llvm::LLVMContext &m_context;
 
-  CompilerInvocation::CreateFromArgs(Clang.getInvocation(), makeArrayRef(args), Clang.getDiagnostics());
+public:
+  EmitLLVMActionFactory(std::vector<std::unique_ptr<llvm::Module>> &modules, llvm::LLVMContext &context)
+      : m_modules(modules), m_context(context) {}
 
-  EmitLLVMOnlyAction action(&m_context);
-  Clang.ExecuteAction(action);
+  std::unique_ptr<clang::FrontendAction> create() override {
+    return std::make_unique<EmitLLVMAction>(m_modules, m_context);
+  }
+};
 
-  m_module = action.takeModule();
+std::unique_ptr<llvm::Module> getModule(clang::tooling::ClangTool &tool, llvm::LLVMContext &context) {
+  std::vector<std::unique_ptr<llvm::Module>> modules;
 
-  errs() << *m_module;
-}
+  auto factory = std::make_unique<EmitLLVMActionFactory>(modules, context);
+  tool.run(factory.get());
 
-boost::optional<llvm::Module &> IrHandler::getModule() const {
-  return m_module ? boost::optional<llvm::Module &>{*m_module} : boost::none;
+  // TODO - check if we need to use more than first
+  std::unique_ptr<llvm::Module> module{std::move(modules.front())};
+
+  if (!module) {
+    exit("Could not get LLVM IR module source file");
+  }
+
+  llvm::errs() << *module;
+  return module;
 }
