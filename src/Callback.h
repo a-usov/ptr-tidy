@@ -5,7 +5,7 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
 class Callback : public clang::ast_matchers::MatchFinder::MatchCallback {
-  PtrRewriter m_ptrRewriter;
+  PtrRewriter<clang::tooling::ClangTool> m_ptrRewriter;
   const std::unique_ptr<llvm::Module> m_module;
   // fine to store since we know it will life and wont be reallocated - stores file path to source code
   const llvm::StringRef m_path;

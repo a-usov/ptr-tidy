@@ -4,8 +4,8 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Tooling.h"
 
-class PtrRewriter {
-  clang::tooling::ClangTool &m_tool;
+template <typename Tool> class PtrRewriter {
+  Tool &m_tool;
   clang::Rewriter m_rewriter;
   bool m_initialised = false;
 
@@ -14,7 +14,7 @@ class PtrRewriter {
   const char *unique_ptr = "std::unique_ptr<{0}> ";
   const char *make_unique = "std::make_unique<{0}>({1})";
 
-  void rewriteFunctionReturn(const clang::FunctionDecl *function);
+  void rewriteFunctionReturn(const clang::VarDecl *var);
 
   void rewriteDeclaration(const clang::VarDecl *var);
 
@@ -25,11 +25,11 @@ class PtrRewriter {
   void removeDelete(const clang::VarDecl *var);
 
 public:
-  explicit PtrRewriter(clang::tooling::ClangTool &tool) : m_tool(tool) {}
+  explicit PtrRewriter(Tool &tool) : m_tool(tool) {}
 
   void initialise(clang::SourceManager &sourceManager, const clang::LangOptions &langOptions);
 
   void rewrite(const clang::VarDecl *var);
 
-  [[nodiscard]] const clang::Rewriter &getRewriter() const { return m_rewriter; }
+  [[nodiscard]] clang::Rewriter &getRewriter() { return m_rewriter; }
 };
