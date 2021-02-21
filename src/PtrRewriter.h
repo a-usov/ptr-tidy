@@ -11,6 +11,7 @@ template <typename Tool> class PtrRewriter {
 
   const char *shared_ptr = "std::shared_ptr<{0}> ";
   const char *make_shared = "std::make_shared<{0}>({1})";
+  const char *shared_ptr_init = "std::shared_ptr<{0}>({1})";
   const char *unique_ptr = "std::unique_ptr<{0}> ";
   const char *make_unique = "std::make_unique<{0}>({1})";
 
