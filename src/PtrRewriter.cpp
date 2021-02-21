@@ -57,14 +57,28 @@ template <typename Tool> void PtrRewriter<Tool>::rewriteInit(const VarDecl *var,
   auto type = var->getType()->getPointeeType().getUnqualifiedType().getAsString();
 
   llvm::StringRef value;
+
   if (auto newExpr = dyn_cast<CXXNewExpr>(init); newExpr) {
-    value = strFromSourceRange(newExpr->getInitializer()->getSourceRange(), m_rewriter.getSourceMgr(),
-                               m_rewriter.getLangOpts());
-  } else {
-    value = strFromSourceRange(init->getSourceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
+    if (newExpr->isArray()) {
+      value = strFromSourceRange(newExpr->getSourceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
+      m_rewriter.ReplaceText(newExpr->getSourceRange(), llvm::formatv(shared_ptr_init, type, value).str());
+      return;
+    } else {
+      // TODO - verify if we always get non-null from getInitialiser
+      value = strFromSourceRange(newExpr->getInitializer()->getSourceRange(), m_rewriter.getSourceMgr(),
+                                 m_rewriter.getLangOpts());
+      m_rewriter.ReplaceText(newExpr->getSourceRange(), llvm::formatv(make_shared, type, value).str());
+    }
+    // New Expr special case - exit early
+    return;
   }
 
-  m_rewriter.ReplaceText(init->getSourceRange(), llvm::formatv(make_shared, type, value).str());
+  value = strFromSourceRange(init->getSourceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
+  if (init->getType()->isPointerType()) {
+    m_rewriter.ReplaceText(init->getSourceRange(), llvm::formatv(shared_ptr_init, type, value).str());
+  } else {
+    m_rewriter.ReplaceText(init->getSourceRange(), llvm::formatv(make_shared, type, value).str());
+  }
 }
 
 template <typename Tool> void PtrRewriter<Tool>::rewriteDeferredInit(const VarDecl *var) {
@@ -103,12 +117,14 @@ template <typename Tool> void PtrRewriter<Tool>::rewriteFunctionReturn(const Var
 
     auto f = [&](const MatchFinder::MatchResult &result) {
       auto ret = result.Nodes.getNodeAs<ReturnStmt>("");
-      auto declRef = dyn_cast<DeclRefExpr>(ret->getRetValue()->IgnoreImpCasts());
-      if (declRef && declRef->getDecl()->getID() == var->getID()) {
-        m_rewriter.ReplaceText(
-            function->getReturnTypeSourceRange(),
-            llvm::formatv(shared_ptr, function->getReturnType()->getPointeeType().getUnqualifiedType().getAsString())
-                .str());
+      if (ret->getRetValue()) {
+        auto declRef = dyn_cast<DeclRefExpr>(ret->getRetValue()->IgnoreImpCasts());
+        if (declRef && declRef->getDecl()->getID() == var->getID()) {
+          m_rewriter.ReplaceText(
+              function->getReturnTypeSourceRange(),
+              llvm::formatv(shared_ptr, function->getReturnType()->getPointeeType().getUnqualifiedType().getAsString())
+                  .str());
+        }
       }
     };
 

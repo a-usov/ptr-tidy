@@ -30,8 +30,11 @@ void Callback::run(const clang::ast_matchers::MatchFinder::MatchResult &result) 
 
 // We want to check its a local pointer that is in the original source, amongst other things
 bool checkVarValid(const clang::VarDecl *var) {
+  // TODO find out why need to check if ctor or dtor - crashes otherwise in getIRValue
   return (var && !var->hasGlobalStorage() && !var->isImplicit() && var->getType()->isPointerType() &&
-          !var->getName().empty());
+          !var->getName().empty() &&
+          !llvm::isa_and_nonnull<clang::CXXConstructorDecl>(var->getParentFunctionOrMethod()) &&
+          !llvm::isa_and_nonnull<clang::CXXDestructorDecl>(var->getParentFunctionOrMethod()));
 }
 
 std::string getFunctionMangledName(clang::ASTContext *context, const clang::FunctionDecl *namedDecl) {
