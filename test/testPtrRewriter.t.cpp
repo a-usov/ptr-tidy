@@ -54,118 +54,105 @@ protected:
 };
 
 TEST_F(PtrRewriterTest, FunctionReturnTypeChanged) {
-  const char *code = "int *foo(){int *a = new int(2); return a;}";
-  tool.code = code;
+  tool.code = "int *foo(){int *a = new int(2); return a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "std::shared_ptr<int> foo(){std::shared_ptr<int> a = std::make_shared<int>(2); return a;}");
 }
 
 TEST_F(PtrRewriterTest, FunctionReturnTypeNotChangedForNonPointer) {
-  const char *code = "int foo(){int a = 2; return a;}";
-  tool.code = code;
+  tool.code = "int foo(){int a = 2; return a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()), "");
 }
 
 TEST_F(PtrRewriterTest, FunctionReturnTypeRewriteHandlesConst) {
-  const char *code = "const int *foo(){int *a = new int(2); return a;}";
-  tool.code = code;
+  tool.code = "const int *foo(){int *a = new int(2); return a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "const std::shared_ptr<int> foo(){std::shared_ptr<int> a = std::make_shared<int>(2); return a;}");
 }
 
 TEST_F(PtrRewriterTest, FunctionReturnTypeRewriteHandlesStatic) {
-  const char *code = "static int *foo(){int *a = new int(2); return a;}";
-  tool.code = code;
+  tool.code = "static int *foo(){int *a = new int(2); return a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "static std::shared_ptr<int> foo(){std::shared_ptr<int> a = std::make_shared<int>(2); return a;}");
 }
 
 // TODO handle classes properly
 TEST_F(PtrRewriterTest, DISABLED_ReferenceFunctionReturnTypeUnchanged) {
-  const char *code = "class A { int m_int; int &getInt(){return m_int;}};";
-  tool.code = code;
+  tool.code = "class A { int m_int; int &getInt(){return m_int;}};";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()), "");
 }
 
 TEST_F(PtrRewriterTest, PointerVariableDeclarationTypeChanged) {
-  const char *code = "void test(){int *a;}";
-  tool.code = code;
+  tool.code = "void test(){int *a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()), "void test(){std::shared_ptr<int> a;}");
 }
 
 TEST_F(PtrRewriterTest, NonPointerVariableDeclarationTypeUnChanged) {
-  const char *code = "void test(){int a;}";
-  tool.code = code;
+  tool.code = "void test(){int a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
 
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()), "");
 }
 
 TEST_F(PtrRewriterTest, InitialisationNewChanged) {
-  const char *code = "void test(){int *a = new int(2);}";
-  tool.code = code;
+  tool.code = "void test(){int *a = new int(2);}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "void test(){std::shared_ptr<int> a = std::make_shared<int>(2);}");
 }
 
 TEST_F(PtrRewriterTest, InitialisationDeferredNewChanged) {
-  const char *code = "void test(){int *a; a = new int(2);}";
-  tool.code = code;
+  tool.code = "void test(){int *a; a = new int(2);}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "void test(){std::shared_ptr<int> a; a = std::make_shared<int>(2);}");
 }
 
 TEST_F(PtrRewriterTest, InitialisationDeferredChanged) {
-  const char *code = "void test(){int *a; a = new int(2); int *b; b = a;}";
-  tool.code = code;
+  tool.code = "void test(){int *a; a = new int(2); int *b; b = a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "void test(){std::shared_ptr<int> a; a = std::make_shared<int>(2); std::shared_ptr<int> b; b = "
             "std::shared_ptr<int>(a);}");
 }
 
 TEST_F(PtrRewriterTest, InitialisationThenDeletion) {
-  const char *code = "void test(){int *a = new int(2); delete a;}";
-  tool.code = code;
+  tool.code = "void test(){int *a = new int(2); delete a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "void test(){std::shared_ptr<int> a = std::make_shared<int>(2); }");
 }
 
 TEST_F(PtrRewriterTest, ReturnRewrittingHandlesEmptyReturn) {
-  const char *code = "void test(){ return; } int *foo(){int *a = new int(2); return a;}";
-  tool.code = code;
+  tool.code = "void test(){ return; } int *foo(){int *a = new int(2); return a;}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "void test(){ return; } std::shared_ptr<int> foo(){std::shared_ptr<int> a = std::make_shared<int>(2); "
             "return a;}");
 }
 
 TEST_F(PtrRewriterTest, HandleArrays) {
-  const char *code = "void foo(){int *a = new int[2];}";
-  tool.code = code;
+  tool.code = "void foo(){int *a = new int[2];}";
 
-  runToolOnCode(factory->create(), code);
+  runToolOnCode(factory->create(), tool.code);
   ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
             "void foo(){std::shared_ptr<int> a = std::shared_ptr<int>(new int[2]);}");
 }
