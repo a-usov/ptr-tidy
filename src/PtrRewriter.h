@@ -8,6 +8,7 @@ template <typename Tool> class PtrRewriter {
   Tool &m_tool;
   clang::Rewriter m_rewriter;
   bool m_initialised = false;
+  bool m_headerAdded = false;
 
   const char *shared_ptr = "std::shared_ptr<{0}> ";
   const char *make_shared = "std::make_shared<{0}>({1})";
