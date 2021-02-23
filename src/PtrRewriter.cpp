@@ -33,6 +33,17 @@ template <typename Tool> void PtrRewriter<Tool>::rewrite(const VarDecl *var) {
     rewriteInit(var);
     removeDelete(var);
     rewriteFunctionReturn(var);
+
+    if (!m_headerAdded) {
+      auto top = var->getASTContext().getTranslationUnitDecl();
+      for (auto &decls : top->decls()) {
+        if (m_rewriter.getSourceMgr().isInMainFile(decls->getBeginLoc())) {
+          m_rewriter.InsertText(decls->getBeginLoc(), "#include <memory>\n", false);
+          break;
+        }
+      }
+      m_headerAdded = true;
+    }
   }
 }
 

@@ -14,8 +14,13 @@ std::string compareRewriterOutput(clang::Rewriter &rewriter) {
   if (buffer) {
     buffer->write(os);
   }
-
   os.flush();
+
+  // output must start with new header, but to simplify test scenario, we remove it from the string.
+  auto header = "#include <memory>\n";
+  assert(output.starts_with(header) || output.empty());
+  output.erase(0, strlen(header));
+
   return output;
 }
 
