@@ -4,19 +4,23 @@
 #include "llvm/Support/FormatVariadic.h"
 
 using namespace clang;
-using namespace clang::ast_matchers;
-
-class LambdaCallback : public MatchFinder::MatchCallback {
-  std::function<void(const MatchFinder::MatchResult &result)> m_lambda;
-
-  void run(const MatchFinder::MatchResult &result) override { m_lambda(result); }
-
-public:
-  explicit LambdaCallback(auto lambda) : m_lambda(std::move(lambda)){};
-};
 
 llvm::StringRef strFromSourceRange(const SourceRange &sourceRange, const SourceManager &sm, const LangOptions &lo) {
   return Lexer::getSourceText(Lexer::getAsCharRange(sourceRange, sm, lo), sm, lo);
+}
+
+/** type must be of pointer type **/
+std::string getNameFromPointerType(const QualType &ptrType) {
+  auto type = cast<Type>(ptrType)->getPointeeType().getUnqualifiedType();
+
+  std::string name;
+  if (auto record = type->getAsCXXRecordDecl(); record) {
+    name = record->getName();
+  } else {
+    name = type.getAsString();
+  }
+
+  return name;
 }
 
 template <typename Tool>
@@ -48,9 +52,8 @@ template <typename Tool> void PtrRewriter<Tool>::rewrite(const VarDecl *var) {
 }
 
 template <typename Tool> void PtrRewriter<Tool>::rewriteDeclaration(const VarDecl *var) {
-  m_rewriter.ReplaceText(
-      SourceRange(var->getTypeSpecStartLoc(), var->getTypeSpecEndLoc()),
-      llvm::formatv(shared_ptr, var->getType()->getPointeeType().getUnqualifiedType().getAsString()).str());
+  m_rewriter.ReplaceText(SourceRange(var->getTypeSpecStartLoc(), var->getTypeSpecEndLoc()),
+                         llvm::formatv(shared_ptr, getNameFromPointerType(var->getType())).str());
 }
 
 template <typename Tool> void PtrRewriter<Tool>::rewriteInit(const VarDecl *var) {
@@ -65,32 +68,35 @@ template <typename Tool> void PtrRewriter<Tool>::rewriteInit(const VarDecl *var,
   // TODO check this - are we ignoring enough
   init = init->IgnoreImpCasts();
 
-  auto type = var->getType()->getPointeeType().getUnqualifiedType().getAsString();
+  auto type = getNameFromPointerType(var->getType());
 
-  llvm::StringRef value;
+  if (auto newExpr = dyn_cast<CXXNewExpr>(init); newExpr && !newExpr->isArray()) {
+    // TODO - verify if we always get non-null from getInitialiser
+    llvm::StringRef value;
 
-  if (auto newExpr = dyn_cast<CXXNewExpr>(init); newExpr) {
-    if (newExpr->isArray()) {
-      value = strFromSourceRange(newExpr->getSourceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
-      m_rewriter.ReplaceText(newExpr->getSourceRange(), llvm::formatv(shared_ptr_init, type, value).str());
-      return;
+    if (newExpr->getInitializationStyle() == CXXNewExpr::NoInit) {
+      value = "";
     } else {
-      // TODO - verify if we always get non-null from getInitialiser
-      value = strFromSourceRange(newExpr->getInitializer()->getSourceRange(), m_rewriter.getSourceMgr(),
-                                 m_rewriter.getLangOpts());
-      m_rewriter.ReplaceText(newExpr->getSourceRange(), llvm::formatv(make_shared, type, value).str());
-    }
-    // New Expr special case - exit early
-    return;
-  }
+      if (auto ctor = newExpr->getConstructExpr(); ctor) {
+        value = strFromSourceRange(ctor->getParenOrBraceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
+        value = value.drop_back().drop_front();
+      } else {
+        value = strFromSourceRange(newExpr->getInitializer()->getSourceRange(), m_rewriter.getSourceMgr(),
+                                   m_rewriter.getLangOpts());
 
-  value = strFromSourceRange(init->getSourceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
-  if (init->getType()->isPointerType()) {
-    m_rewriter.ReplaceText(init->getSourceRange(), llvm::formatv(shared_ptr_init, type, value).str());
-  } else {
+        if (isa<InitListExpr>(newExpr->getInitializer())) {
+          value = value.drop_back().drop_front();
+        }
+      }
+    }
     m_rewriter.ReplaceText(init->getSourceRange(), llvm::formatv(make_shared, type, value).str());
+  } else {
+    auto value = strFromSourceRange(init->getSourceRange(), m_rewriter.getSourceMgr(), m_rewriter.getLangOpts());
+    m_rewriter.ReplaceText(init->getSourceRange(), llvm::formatv(shared_ptr_init, type, value).str());
   }
 }
+
+using namespace clang::ast_matchers;
 
 template <typename Tool> void PtrRewriter<Tool>::rewriteDeferredInit(const VarDecl *var) {
   auto f = [&](const MatchFinder::MatchResult &result) {
@@ -131,10 +137,8 @@ template <typename Tool> void PtrRewriter<Tool>::rewriteFunctionReturn(const Var
       if (ret->getRetValue()) {
         auto declRef = dyn_cast<DeclRefExpr>(ret->getRetValue()->IgnoreImpCasts());
         if (declRef && declRef->getDecl()->getID() == var->getID()) {
-          m_rewriter.ReplaceText(
-              function->getReturnTypeSourceRange(),
-              llvm::formatv(shared_ptr, function->getReturnType()->getPointeeType().getUnqualifiedType().getAsString())
-                  .str());
+          m_rewriter.ReplaceText(function->getReturnTypeSourceRange(),
+                                 llvm::formatv(shared_ptr, getNameFromPointerType(function->getReturnType())).str());
         }
       }
     };
