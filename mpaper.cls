@@ -1,4 +1,4 @@
-% paper.cls
+% mpaper.cls
 % based on ACM sig_alternate.cls
 % Jeremy Singer  16 October 2012
 % Gethin Norman 15 January 2013
@@ -475,7 +475,7 @@ breaklines=true,
 %    \renewcommand\thefootnote{\@fnsymbol\c@footnote}%
 %%    \global\@topnum\z@   % Prevents figures from going at top of page.
    \twocolumn[
-   {\hfill \includegraphics[width=60mm]{images/CompSci_colour}}
+   {\hfill \includegraphics[width=60mm]{CompSci_colour.pdf}}
    \begin{center}%
    \line(1,0){500} \vskip .2cm
      {\ttlfnt \@title \par} \vskip .3cm
@@ -506,7 +506,7 @@ breaklines=true,
 
 \if@ll
   \NeedsTeXFormat{LaTeX2e}
-  \ProvidesClass{paper}[2013/01/15 v1.0 LaTeX document class for Glasgow MSci paper]
+  \ProvidesClass{mpaper}[2013/01/15 v1.0 LaTeX document class for Glasgow MSci paper]
   \let\dooptions\ProcessOptions
 \else
   \let\dooptions\@options

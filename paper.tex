@@ -1,8 +1,11 @@
-\documentclass{paper}
+\documentclass{mpaper}
+
+\usepackage[numbers]{natbib}
+\usepackage{xurl}
 
 \begin{document}
 
-    \title{ptr-tidy: Automatic refactoring of raw pointers in C++}
+    \title{ptr-tidy: Automatic Rejuvenation of Raw Pointers in C++}
     \author{Artem Usov}
     \matricnum{2296905U}
 
@@ -20,6 +23,37 @@
 
 
     \section{Introduction}\label{sec:introduction}
+    
+    Most ordinary computer users demand that the machine they are using provides them with a responsive, secure and productive environment to complete their tasks.
+    The programs that are most responsible for this are complex systems programs such as the underlying operating system, device drivers and web browsers.
+    Systems programming often involves memory management, that is requesting memory from the operating system to be used and managed by the program.
+    This is done when the amount of memory that we need cannot be know at the time of compilation of the program.
+    However, doing so creates the opportunity for memory safety errors~\cite{Dhurjati2003} which are notoriously challenging to avoid.
+    If there are memory safety errors in a program, there is the possibility that it could be exploited by a malicious party to crash the program, expose sensitive data or gain remote code execution capabilities~\cite{Afek2007}.
+
+    Historically systems programs are mostly written in C, C++ or a combination of the two and remain the dominant languages.
+    They are lower level languages that involve manual memory management by the programmer.
+    It is even more challenging to ensure that C and C++ programs contain no memory safety errors as evidenced by empirical evidence in industry, where in a presentation at the Linux Security Summit it is shown that in several popular projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs attributed to issues with memory safety~\cite{Gaynor2020}.
+    Similarly, in a presentation by Matt Miller, a security engineer at Microsoft, it is shown that around 70\% of their vulnerabilities that are addressed through a security updates are due to memory safety issues~\cite{Miller2019}. 
+    This is at industry-leading companies who are renowned for hiring top talent and top developer education programs.
+
+    However the continued use of C and C++, alongside industry mottos such as \emph{``Move fast and break things''}~\cite{Vardi2018} do not help by possibly diminishing the danger of memory safety error exploitation.
+    However due to new regulations such as the GDPR and increasing oversight by regulators, any such exploitations which do expose sensitive data are more commonly exposed to the general public and punished by regulators.
+    An example is a fine of £20m for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}. 
+
+    However simply not using these languages is not an option since their unmanaged nature makes them highly performant, and therefore the best option for systems such as a web browser.
+    Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
+    Rust is a systems language that offers similar performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model also guarantee memory safety.
+    The rewriting of a program in a new language, namely from C++ to Rust, is a colossal undertaking, especially given that Rust has a reputation for being difficult to learn.
+    Instead, modern C++ guidelines encourage the use of \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create memory or resource handles which automatically eliminate entire classes of memory safety errors.
+    Yet, we encounter further problems as C++ programs either do not actively follow this advice, or are \emph{legacy} programs that were written before these features were introduced to the language.
+    
+    We therefore propose a solution in the form of a tool, \emph{ptr-tidy}, to analyse and automatically refactor programs to follow the recommended use of smart pointers where the analysis can determine that such a change is syntactically correct and does not change the runtime behaviour of the program. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+    \section{Related Work}\label{sec:related-work}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -29,6 +63,13 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+    \section{Implementation}\label{sec:implementation}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 
     \section{Evaluation}\label{sec:evaluation}
@@ -46,7 +87,7 @@
     \vskip8pt \noindent
     \textbf{Acknowledgments.}
 
-    \bibliographystyle{abbrv}
+    \bibliographystyle{abbrvnat}
     \bibliography{paper}
 
 \end{document}
