@@ -208,3 +208,12 @@ TEST_F(PtrRewriterTest, HandleStructCallInitValue) {
             "struct A {int m_a; A(int a) : m_a(a) {}}; std::shared_ptr<A> test(){std::shared_ptr<A> a = "
             "std::make_shared<A>(1); return a;}");
 }
+
+TEST_F(PtrRewriterTest, HandleAddingGetToDeclRef) {
+  tool.code = "void foo(int *a){} int *test(){int *a = new int(2); foo(a); return a;}";
+
+  runToolOnCode(factory->create(), tool.code);
+  ASSERT_EQ(compareRewriterOutput(rewriter.getRewriter()),
+            "void foo(std::shared_ptr<int> a){} std::shared_ptr<int> test(){std::shared_ptr<int> a = "
+            "std::make_shared<int>(2); foo(a.get()); return a;}");
+}

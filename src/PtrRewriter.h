@@ -25,6 +25,7 @@ template <typename Tool> class PtrRewriter {
   void rewriteDeferredInit(const clang::VarDecl *var);
 
   void removeDelete(const clang::VarDecl *var);
+  void addSmartGet(const clang::VarDecl *var);
 
 public:
   explicit PtrRewriter(Tool &tool) : m_tool(tool) {}

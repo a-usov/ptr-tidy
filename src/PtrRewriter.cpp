@@ -37,6 +37,7 @@ template <typename Tool> void PtrRewriter<Tool>::rewrite(const VarDecl *var) {
     rewriteInit(var);
     removeDelete(var);
     rewriteFunctionReturn(var);
+    addSmartGet(var);
 
     if (!m_headerAdded) {
       auto top = var->getASTContext().getTranslationUnitDecl();
@@ -148,6 +149,24 @@ template <typename Tool> void PtrRewriter<Tool>::rewriteFunctionReturn(const Var
     finder.addMatcher(returnStmt().bind(""), &callback);
     m_tool.run(clang::tooling::newFrontendActionFactory(&finder).get());
   }
+}
+
+template <typename Tool> void PtrRewriter<Tool>::addSmartGet(const clang::VarDecl *var) {
+  auto f = [&](const MatchFinder::MatchResult &result) {
+    auto call = result.Nodes.getNodeAs<CallExpr>("");
+    for (auto i = 0; i < call->getNumArgs(); ++i) {
+      auto declRef = dyn_cast<DeclRefExpr>(call->getArg(i)->IgnoreImpCasts());
+      if (declRef && declRef->getDecl()->getID() == var->getID()) {
+        m_rewriter.ReplaceText(SourceRange(declRef->getBeginLoc(), declRef->getEndLoc()),
+                               declRef->getNameInfo().getName().getAsString() + ".get()");
+      }
+    }
+  };
+
+  LambdaCallback callback(f);
+  MatchFinder finder;
+  finder.addMatcher(callExpr(hasAnyArgument(ignoringParenImpCasts(declRefExpr()))).bind(""), &callback);
+  m_tool.run(clang::tooling::newFrontendActionFactory(&finder).get());
 }
 
 template class PtrRewriter<clang::tooling::ClangTool>;
