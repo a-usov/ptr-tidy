@@ -154,7 +154,7 @@ template <typename Tool> void PtrRewriter<Tool>::rewriteFunctionReturn(const Var
 template <typename Tool> void PtrRewriter<Tool>::addSmartGet(const clang::VarDecl *var) {
   auto f = [&](const MatchFinder::MatchResult &result) {
     auto call = result.Nodes.getNodeAs<CallExpr>("");
-    for (auto i = 0; i < call->getNumArgs(); ++i) {
+    for (unsigned int i = 0; i < call->getNumArgs(); ++i) {
       auto declRef = dyn_cast<DeclRefExpr>(call->getArg(i)->IgnoreImpCasts());
       if (declRef && declRef->getDecl()->getID() == var->getID()) {
         m_rewriter.ReplaceText(SourceRange(declRef->getBeginLoc(), declRef->getEndLoc()),

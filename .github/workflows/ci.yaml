@@ -13,8 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Install Clang and Boost development Libraries
-        run: sudo apt-get install clang libclang-dev libgtest-dev
+      - name: Install Clang and GTest development Libraries
+        run: sudo apt-get install clang-10 libclang-10-dev libgtest-dev
+
+      - name: Install Clang 11 as it breaks builds
+        run: sudo apt-get purge clang-11
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{runner.workspace}}/build
