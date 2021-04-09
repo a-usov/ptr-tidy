@@ -2,18 +2,18 @@
 
 ## Building on Linux
 
-#### First install clang, llvm and other dependancies. This will depend on your distribution.
+#### First install Clang, LLVM and other dependencies. This will depend on your distribution.
 
 ##### Arch
 
 ```sh
-pacman -S clang llvm gtest boost
+# pacman -S clang llvm gtest gmock cmake make
 ```
 
-##### Ubuntu
+##### Ubuntu/Debian
 
 ```sh
-apt-get install clang libclang-dev libboost-dev libgtest-dev
+# apt-get install clang libclang-dev libgtest-dev cmake make
 ```
 
 #### Then to build ptr-tidy
