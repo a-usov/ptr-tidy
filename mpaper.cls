@@ -11,11 +11,10 @@
 \usepackage{color}
 \usepackage{graphicx}
 \usepackage{epsfig}
-\usepackage{fixltx2e} % Misc. bugfixes
 \usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{amsfonts}
-\usepackage{listings} % Environment for code listings
+\usepackage{listings}
 \usepackage[a4paper]{geometry}
 \usepackage[breaklinks,colorlinks,citecolor=black,urlcolor=black,linkcolor=black,pdfpagelabels=false,pdfusetitle]{hyperref}
 \usepackage{flushend} % Automatically balances columns on the last page
@@ -475,7 +474,7 @@ breaklines=true,
 %    \renewcommand\thefootnote{\@fnsymbol\c@footnote}%
 %%    \global\@topnum\z@   % Prevents figures from going at top of page.
    \twocolumn[
-   {\hfill \includegraphics[width=60mm]{CompSci_colour.pdf}}
+   {\hfill \includegraphics[width=60mm]{images/CompSci_colour.pdf}}
    \begin{center}%
    \line(1,0){500} \vskip .2cm
      {\ttlfnt \@title \par} \vskip .3cm

@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/artem/tinyxml2",
+  "command": "/usr/bin/c++ -o CMakeFiles/tinyxml2.dir/tinyxml2.cpp.o -c /home/artem/tinyxml2/tinyxml2.cpp",
+  "file": "/home/artem/tinyxml2/tinyxml2.cpp"
+}
+]
