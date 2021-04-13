@@ -63,7 +63,7 @@
     
     Unfortunately, simply not using C or C++ is not an option since their unmanaged nature allows for high performance, and therefore the best option for systems with strict or high requirements.
     Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
-    Rust is a systems language that offers similar performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model guarantee memory safety.
+    Rust is a systems language that offers similar performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model guarantee that none of the memory errors that we are considering can occur.
     The rewriting of a program in a new language, namely from C++ to Rust, is a colossal undertaking, especially given that Rust has a reputation for being difficult to learn~\cite{Astrauskas2019}.
     Instead, modern C++ guidelines encourage the use of \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create compiler managed resource handles.
     Their correct use eliminates the three previously identified classes of memory safety errors.
@@ -103,7 +103,7 @@
 
     Secondly, there has been separate academic research into rejuvenation tools such as the work by \citet{Huck2016} and \citet{Kumar2012}.
     The former also uses the Clang driven approach like \citet{Wright2013}, while the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
-    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
+    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, the ongoing support for new C++ standards and non-standard features as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
     
     There has also been industry interest in automatic rejuvenation tools \emph{between} languages rather than \emph{within} the same language. 
     This is done either to increase the use of a new, improved language by creating tools to aid transition, or in order to reuse existing compilers.
@@ -136,7 +136,7 @@
     Even though the \texttt{Circle} object is placed on the heap, the compiler can manage the smart pointer for us so that in all the cases where the lifetime of the object ends, the object will be released. 
 
     The first type of smart pointer are \emph{unique pointers}, which can have only a single unique owner at any time and therefore are ideal for resources which may not be copied.
-    The resource managed by a unique pointer is released when the current owner exits the scope of the function or method it is contained in.
+    The resource managed by a unique pointer is released when execution of the program exits the scope of the function or method that the owner of the resource is contained in.
     The ownership of a unique pointer can be transferred between variables using \texttt{std::move} which \emph{moves} the ownership from one variable to another, making the original owner invalid.
     % TODO insert example diagram possibly
 
@@ -155,10 +155,14 @@
     
     As seen from \autoref{sec:related-work}, much similar research uses Clang and thus LLVM.
     LLVM~\cite{Lattner2004} is a compiler infrastructure project consisting of several compiler and toolchain technologies. 
+    
     LLVM is centrally designed around a language independent intermediate representation (IR), which can be created by a number of language front-ends and is used by a number of back-ends to generate machine code. 
+    The LLVM IR is a language-independent, static single assignment (SSA)~\cite{Rosen1988} representation of a program.
+    Variables in SSA form can only be assigned once, which allows us to efficiently generate definition-usage graphs, and allows for fast and optimised analysis algorithms to be written.
     Programs can then be optimised by applying portable and reusable transformations on the IR.
+    
     Any improvement in back-end machine code generation, as well as any new or improved IR optimisations therefore benefit all of the language front-ends.
-    It is therefore visible that this allows for a very modular and powerful design which can be seen in \autoref{fig:llvm-design}.
+    It can be seen that this allows for a very modular and powerful design, shown in \autoref{fig:llvm-design}.
     
     Clang~\cite{Lattner2008} is a LLVM language front-end for C, C++ and a variety of other extensions such as OpenGL.
     By using the LLVM infrastructure, it allows for faster and more efficient compilation of C++ compared to existing, older compilers such as the GNU Compiler Collection~\footnote{\url{https://gcc.gnu.org/}} (GCC)~\cite{Lattner2008}.
@@ -177,11 +181,7 @@
     For example, we can see in \autoref{fig:code-to-ast-example} that the AST stores much syntactic as well as semantic information in the form of source code locations and variable initialisation styles.
     The LLVM authors remark that this makes it very suitable for refactoring tools.
     
-    The LLVM IR is a language-independent, static single assignment (SSA)~\cite{Rosen1988} representation of a program.
-    Variables in SSA form can only be assigned once, which allows us to efficiently generate compact definition-usage graphs, which enable developers to simplify many dataflow optimizations and enables fast, flow-insensitive algorithms~\cite{Lattner2004}.
     
-    \vskip50pt
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -321,8 +321,8 @@
         \includegraphics{images/arrow.pdf}
         
         \begin{minted}{c++}
-        std::shared_ptr<int> test() {
-            std::shared_ptr<char> a = std::shared_ptr<char>(new char[2]);
+        std::shared_ptr<char[]> test() {
+            std::shared_ptr<char[]> a = std::shared_ptr<char[]>(new char[2]);
             a.get()[0] = 'a';
             printf("\%s", a.get());
             return a;
