@@ -24,10 +24,10 @@
     Systems programming involves dynamically requesting memory which in the C++ language has to be manually managed by the programmer. 
     However, this leaves the opportunity for exploitable memory safety errors.
     Modern C++ recommends that smart pointers are used to automatically manage resources such as dynamic memory.
-    However, many legacy programs may have been written before these features were introduced to the language.
+    However, many legacy programs were been written before these features were introduced to the language.
     We develop the ptr-tidy tool in order to automatically rejuvenate such programs to use smart pointers.
-    The tool uses the Clang and LLVM libraries in order to create a componentised and powerful design which could be used by other refactoring or rejuvenation tools. 
-    We present a case study and also apply the tool on a number of open-source C++ libraries from a variety of areas in computer science to show that the tool can successfully rejuvenate non-trivial libraries.
+    The tool uses the Clang and LLVM libraries in order to create a componentised and powerful framework which could be used by other refactoring or rejuvenation tools. 
+    We present a case study and also apply the tool on a number of open-source C++ libraries from a variety of application domains to show that the tool can successfully rejuvenate non-trivial libraries.
     We discuss the circumstances in which the tool performs well and the current limitations.
     \end{abstract}
 
@@ -40,20 +40,20 @@
     Most ordinary computer users demand that the machine they are using provides them with a responsive, secure and productive environment to complete their tasks.
     The programs that are most responsible for this are complex systems programs such as the underlying operating system, device drivers and web browsers.
     Systems programming involves memory management, that is dynamically requesting memory from the operating system to be used and managed by the program.
-    This is done as the amount of memory that we need at runtime cannot be know at the time of compilation of the program.
+    This is done as the amount of memory that we need at runtime cannot be known at the time of compilation of the program.
     However, doing so creates the opportunity for memory safety errors~\cite{Dhurjati2003}.
     A memory safety error can be one of:
     \begin{itemize}
-        \item \textbf{Dangling pointers}, prematurely freeing memory that is still in use.
+        \item \textbf{Dangling pointer}, prematurely freeing memory that is still in use.
         \item \textbf{Double free}, freeing memory multiple times.
         \item \textbf{Never free}, never freeing memory.
     \end{itemize}
     There are other categories of memory safety errors such as buffer overflows which we do not consider in this paper.
     If there are memory safety errors in a program, there is the possibility that it could be exploited by a malicious party to crash the program, expose sensitive data or gain remote code execution capabilities~\cite{Afek2007}.
 
-    Historically, systems programs are mostly written in C, C++ or a combination of the two and these remain the dominant languages.
+    Historically, systems programs were mostly written in C, C++ or a combination of the two and these remain the dominant languages.
     They are lower level languages that involve manual memory management by the programmer.
-    It is challenging to ensure that C and C++ programs contain no memory safety errors as evidenced by empirical data in industry, where in a presentation at the Linux Security Summit it was shown that in several popular projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs~\footnote{\url{https://cve.mitre.org/}} attributed to issues with memory safety~\cite{Gaynor2020}.
+    It is extremely challenging to ensure that C and C++ programs contain no memory safety errors as evidenced by empirical data in industry, where in a presentation at the Linux Security Summit it was shown that in several popular projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs~\footnote{\url{https://cve.mitre.org/}} attributed to issues with memory safety~\cite{Gaynor2020}.
     Similarly, in a presentation by Matt Miller, a security engineer at Microsoft, it is shown that around 70\% of their vulnerabilities that are addressed through security updates are due to memory safety issues~\cite{Miller2019}. 
     % This is at industry-leading companies who are renowned for hiring top talent and with top developer education programs.
     
@@ -76,12 +76,12 @@
         \inputminted{c++}{code/leak.cpp}
         \includegraphics{images/arrow.pdf}
         \inputminted{c++}{code/fix-leak.cpp}
-        \caption{Example of a memory leak using manual management and how smart pointers correct this problem. Lines 4 and 5 show how interruptions in the program control flow can mistakenly cause memory leaks as the \texttt{delete} statement is never reached. Smart pointers correct this by automatically inserting delete statements at all necessary locations at compile time. All necessary headers are omitted for brevity}
+        \caption{Example of a memory leak using manual management and how smart pointers correct this problem. Lines 4 and 5 show how interruptions in the program control flow can mistakenly cause memory leaks as the \texttt{delete} statement is never reached. Smart pointers correct this as the compiler automatically inserts delete statements at all necessary locations at compile time. All necessary headers are omitted for brevity}
         \label{lst:motivating-example}
     \end{figure}
     
     We provide a motivating example in \autoref{lst:motivating-example} where the initial version of the function has several control flow statements that could cause the \texttt{Circle} object to never be freed.
-    The example can seem trivial as all the possible executions of the program are easy to visualise, but can suddenly be rather non-trivial if the conditions in the \texttt{if} statement become calls into external libraries, which may throw an exception and cause the \texttt{delete} statement to again not be reached.
+    The example can seem trivial as all the possible executions paths of the program are easy to visualise, but can suddenly become rather non-trivial if the conditions in the \texttt{if} statement become calls into external libraries, which may throw an exception and cause the \texttt{delete} statement to again not be reached.
 
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -91,7 +91,7 @@
     
     Our work closely relates to work done around the field of \emph{source code rejuvenation}, as defined by \citet{Pirkelbauer2010}. 
     We exactly aim to replace outdated coding patterns with newer, higher-level abstractions, as well as fitting the notion that this tool would be applied once to a codebase, rather than be a reoccurring task.
-    We will however use the terms rejuvenating and refactoring interchangeably in this paper as it is a term that most developers are more familiar with.
+    We will however use the terms rejuvenating and refactoring interchangeably in this paper as refactoring is a term that most developers are more familiar with.
     
     We believe research in this area is going to increase, as languages move and evolve much quicker than can be supported in enterprise environments~\cite{Overbey2009, Favre2005}, resulting in accumulating technical debt. 
     This is supported by the fact that other relevant work has been completed on this subject.
@@ -109,7 +109,7 @@
     This is done either to increase the use of a new, improved language by creating tools to aid transition, or in order to reuse existing compilers.
     For example, the Kotlin language team created the J2K~\footnote{\url{https://github.com/JetBrains/kotlin/tree/master/j2k}} transpiler in order to entice Java developers to switch to a language with improved language features such as null safety~\cite{Mateus2019}. 
     Similarly, several new languages such as Typescript~\footnote{\url{https://www.typescriptlang.org/}} and Dart~\footnote{\url{https://dart.dev/}} have been recently developed which were designed not to be used by themselves, but to be transpiled to the popular Javascript language.
-    These languages aim to solve shortcomings of the output language, whilst reusing the existing mature and efficient compilers or interpreters.
+    These languages aim to solve shortcomings of the target language, whilst reusing the existing mature and efficient compilers or interpreters.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -119,7 +119,7 @@
     
     \subsection{Using Smart Pointers for Memory Management}\label{subsec:using-smart-pointers-for-memory-management}
 
-    Generally, pointers are used to give a program access to a resource that cannot be directly included in the program itself, such as allocated memory or a file.
+    Generally, pointers are used to give a program indirect access to a resource that cannot be directly included in the program itself, such as allocated memory or a file.
     Pointers can also be used to pass large resources to functions without needing to create a copy, which would have a performance impact. 
     
     Pointers can be created for objects both on \emph{the stack and the heap}~\cite{Stroustrup2000}. 
@@ -135,12 +135,12 @@
     We can see how smart pointers and RAII work in our motivating example in  \autoref{lst:motivating-example}.
     Even though the \texttt{Circle} object is placed on the heap, the compiler can manage the smart pointer for us so that in all the cases where the lifetime of the object ends, the object will be released. 
 
-    The first type of smart pointer are \emph{unique pointers}, which can have only a single unique owner at any time and therefore are ideal for resources which may not be copied.
+    The first type of smart pointer is a \emph{unique pointer}, which has only a single unique owner at any time and therefore are ideal for resources which may not be copied.
     The resource managed by a unique pointer is released when execution of the program exits the scope of the function or method that the owner of the resource is contained in.
     The ownership of a unique pointer can be transferred between variables using \texttt{std::move} which \emph{moves} the ownership from one variable to another, making the original owner invalid.
     % TODO insert example diagram possibly
 
-    The second type of smart pointer are \emph{shared pointers} which are used for resources which may not necessarily have a single unique owner and so several owners \emph{share} ownership to the resource.
+    The second type of smart pointer is a \emph{shared pointer} which is used for resources that may not necessarily have a single unique owner and so several owners \emph{share} ownership to the resource.
     Reference counting~\cite{Collins1960} is used to ensure that after the last owner loses access to the resource, it will finally be freed.
     Shared pointers are suitable to be used in most situations and such reference counted pointers are used by default for all values in the Python and Swift languages~\footnote{\url{https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html}}
     
@@ -198,7 +198,7 @@
     Next, our tool would need to be able to identify specifically which pointers are suitable for refactoring into smart pointers.
     An \emph{unique pointer} is a smart pointer that represents a single unique owner of a region of memory at any point in time.
     We will therefore need to develop a static analysis algorithm to identify the maximum number of owners a region of memory has throughout all points of the program. 
-    If a memory region has at most a single unique owner, then we can refactor the initialising raw pointer to be a unique pointer, and otherwise to a shared pointer.    
+    If a memory region has at most a single owner, then we can refactor the initialising raw pointer to be a unique pointer, and otherwise to a shared pointer.    
     This analysis will need to ensure that its result is correct, and will inevitably have to make some conservative assumptions about the program.
     
     \begin{figure}
@@ -220,7 +220,7 @@
     If it does not escape, meaning it is only used locally in the method, then the object can be allocated on the stack rather than the heap as a performance optimisation.
     LLVM also uses escape analysis for a similar kind of optimisation~\footnote{\url{https://github.com/llvm/llvm-project/blob/main/llvm/lib/Analysis/CaptureTracking.cpp}}.
     
-    It is now visible that the invariant of the unique pointer are only violated when:
+    It is now apparent that the invariant of the unique pointer is only violated when:
     \begin{itemize}
         \item a pointer escapes, as then we do not know where or how the pointer may be used, so we must take a conservative approach and assume the memory region no longer has at most a single unique owner.
         \item a pointer does not escape but access to the memory is shared rather than transferred between local variables. 
@@ -367,7 +367,7 @@
     Through our research, we would like to answer the question of whether our implemented tool can truly improve C++ code by seeing if the tool can be used not only on small test examples but also on larger existing programs. We would also like to determine if the rejuvenation produces code which can be compiled and can be judged to be better.
     Then, if the tool is able to do this, we want to evaluate how well the tool performs by analysing the effectiveness of the analysis algorithms.
 
-    In order to evaluate the objectives above, hypotheses were made:
+    In order to evaluate the objectives above, hypotheses were formed:
     
     \begin{itemize}
         \item \textbf{Hypothesis 1} The automatic translation of raw pointers into smart pointers can be used to make existing C++ code more modern and safe.
@@ -393,7 +393,7 @@
     It is also used in the \emph{libigl}~\cite{Libigl} geometry processing library,  which itself is used by a variety of large industry companies.
     It is released under a \emph{zlib} license~\footnote{\url{https://opensource.org/licenses/Zlib}} which allows us to use and alter the software.
     What makes the library a particularly attractive choice is the simplicity of the library.
-    The library does not make use of exceptions, RTTI or the STL~\cite{C++17}, and therefore most importantly does not make use of smart pointers. 
+    The library does not make use of the STL~\cite{C++17}, and therefore most importantly does not make use of smart pointers. 
     The library is also around three thousand lines of code in length, making it large enough to likely have a variety of interesting features to analyse, whilst remaining small enough for manual inspection.
     
     \begin{listing}
@@ -504,7 +504,7 @@
           ret void
         }
         \end{minted}
-        \caption{C++ and equivelent LLVM IR snippet showing how function arguments are not considered \texttt{noescape} or \texttt{noalias}}
+        \caption{C++ and equivalent LLVM IR snippet showing how function arguments are not considered \texttt{noescape} or \texttt{noalias}}
         \label{fig:function-arguments}
     \end{figure}
     
@@ -551,20 +551,20 @@
     
     We therefore believe that from the analysis of our tool on the case study of the TinyXML-2 library, even with the identified failure cases, the success of the automated translation and identified success cases allow us to confirm our first hypothesis.
     
-    \subsection{Analysis of performance on a corpora of projects}
+    \subsection{Analysis of performance on a corpus of projects}
     
-        \begin{table*}
-    \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
-    \hline
-                                   & \textbf{clipper} & \textbf{happyhttp} & \textbf{jzon} & \textbf{micropather} & \textbf{poisson} & \textbf{polypartition} & \textbf{tinyxml2} & \textbf{xatlas} \\ \hline \hline
-    \textbf{Runtime (ms)}          & 146.521          & 10.540             & 3.140                & 2.429         & 4.471            & 11.885                 & 16.055            & 105.212         \\ \hline
-    \textbf{Escaped Pointer}       & 94               & 22                 & 2                    & 39            & 7                & 46                     & 164               & 235             \\ \hline
-    \textbf{Non-Escaped Pointers}  & 132              & 16                 & 3                    & 34            & 3                & 22                     & 84                & 111             \\ \hline
-    \textbf{Lines of Code Changed}   & 205             & 27                 & 3                    & 57            & 6                & 31                     & 142               & 154             \\ \hline
-    \textbf{Total Lines of Code} & 5035             & 1273               & 1324                 & 1587          & 523              & 2270                   & 5366              & 10318           \\ \hline
-    \end{tabular}    
-    \caption{Data gathered from the rejuvenation of each projects. Total lines of code include both the implementation and header file of each project. Runtime measured in milliseconds as the median of five runs.}
-    \label{table:data}
+    \begin{table*}
+        \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
+        \hline
+                                        & \textbf{clipper} & \textbf{happyhttp} & \textbf{jzon} & \textbf{micropather} & \textbf{poisson} & \textbf{polypartition} & \textbf{tinyxml2} & \textbf{xatlas} \\ \hline \hline
+        \textbf{Runtime (ms)}          & 146.521          & 10.540             & 3.140                & 2.429         & 4.471            & 11.885                 & 16.055            & 105.212         \\ \hline
+        \textbf{Escaped Pointer}       & 94               & 22                 & 2                    & 39            & 7                & 46                     & 164               & 235             \\ \hline
+        \textbf{Non-Escaped Pointers}  & 132              & 16                 & 3                    & 34            & 3                & 22                     & 84                & 111             \\ \hline
+        \textbf{Lines of Code Changed}   & 205             & 27                 & 3                    & 57            & 6                & 31                     & 142               & 154             \\ \hline
+        \textbf{Total Lines of Code} & 5035             & 1273               & 1324                 & 1587          & 523              & 2270                   & 5366              & 10318           \\ \hline
+        \end{tabular}    
+        \caption{Data gathered from the rejuvenation of each projects. Total lines of code include both the implementation and header file of each project. Runtime measured in milliseconds as the median of five runs.}
+        \label{table:data}
     \end{table*}
     
     \begin{figure*}
@@ -678,7 +678,7 @@
     However, it remains to be investigated whether these optimisations can be called dynamically during the running of our tool in order to gain insight into conservative assumptions that we currently have to make. 
     
     In terms of the evaluation of the tool, we would like to extend it with more complex, multi-file projects and determine whether the translation unit barrier, where an analysis pass can only access the current implementation file, has an impact on analysis performance.
-    An inter-modular analysis, similar to existing LTO optimisations in compilers~\footnote{\url{https://llvm.org/docs/LinkTimeOptimization.html}}, can then be evaluated whether it brings greater analysis performance. 
+    An inter-modular analysis, similar to existing link time optimisations in compilers~\footnote{\url{https://llvm.org/docs/LinkTimeOptimization.html}}, can then be evaluated whether it brings greater analysis performance. 
     
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
