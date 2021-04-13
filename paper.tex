@@ -21,14 +21,14 @@
 
 
     \begin{abstract}
-    Systems programming involves dynamically requesting memory that in the C++ language has to be manually managed by the programmer. 
+    Systems programming involves dynamically requesting memory which in the C++ language has to be manually managed by the programmer. 
     However, this leaves the opportunity for exploitable memory safety errors.
-    Modern C++ recommends that smart pointer are used to automatically manage resources such as dynamic memory.
-    However, many legacy programs may have been written before these features were introduces to the language.
-    We developed the ptr-tidy tool in order to automatically rejuvenate such programs to use smart pointers.
-    The tool uses the Clang and LLVM libraries in order to create a componentised and powerful design which could be reused by other refactoring or rejuvenation tools. 
-    We present a case study and and apply the tool on a number of open-source C++ libraries to show that the tool can successfully rejuvenate non-trivial libraries and that the tool can be used on libraries from many areas of computer science. 
-    We discuss in which circumstances the tool performs well and the current limitations.
+    Modern C++ recommends that smart pointers are used to automatically manage resources such as dynamic memory.
+    However, many legacy programs may have been written before these features were introduced to the language.
+    We develop the ptr-tidy tool in order to automatically rejuvenate such programs to use smart pointers.
+    The tool uses the Clang and LLVM libraries in order to create a componentised and powerful design which could be used by other refactoring or rejuvenation tools. 
+    We present a case study and also apply the tool on a number of open-source C++ libraries from a variety of areas in computer science to show that the tool can successfully rejuvenate non-trivial libraries.
+    We discuss the circumstances in which the tool performs well and the current limitations.
     \end{abstract}
 
 
@@ -40,45 +40,48 @@
     Most ordinary computer users demand that the machine they are using provides them with a responsive, secure and productive environment to complete their tasks.
     The programs that are most responsible for this are complex systems programs such as the underlying operating system, device drivers and web browsers.
     Systems programming involves memory management, that is dynamically requesting memory from the operating system to be used and managed by the program.
-    This is done when the amount of memory that we need at runtime cannot be know at the time of compilation of the program.
-    However, doing so creates the opportunity for memory safety errors~\cite{Dhurjati2003} which are notoriously challenging to avoid.
+    This is done as the amount of memory that we need at runtime cannot be know at the time of compilation of the program.
+    However, doing so creates the opportunity for memory safety errors~\cite{Dhurjati2003}.
     A memory safety error can be one of:
     \begin{itemize}
-        \item \textbf{Dangling pointers}, prematurely freeing an object that is still in use.
-        \item \textbf{Double free}, deleting an object multiple times.
-        \item \textbf{Never free}, never deleting an object.
+        \item \textbf{Dangling pointers}, prematurely freeing memory that is still in use.
+        \item \textbf{Double free}, freeing memory multiple times.
+        \item \textbf{Never free}, never freeing memory.
     \end{itemize}
     There are other categories of memory safety errors such as buffer overflows which we do not consider in this paper.
     If there are memory safety errors in a program, there is the possibility that it could be exploited by a malicious party to crash the program, expose sensitive data or gain remote code execution capabilities~\cite{Afek2007}.
 
-    Historically systems programs are mostly written in C, C++ or a combination of the two and these remain the dominant languages.
+    Historically, systems programs are mostly written in C, C++ or a combination of the two and these remain the dominant languages.
     They are lower level languages that involve manual memory management by the programmer.
-    It is even more challenging to ensure that C and C++ programs contain no memory safety errors as evidenced by empirical evidence in industry, where in a presentation at the Linux Security Summit it is shown that in several popular projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs attributed to issues with memory safety~\cite{Gaynor2020}.
-    Similarly, in a presentation by Matt Miller, a security engineer at Microsoft, it is shown that around 70\% of their vulnerabilities that are addressed through a security updates are due to memory safety issues~\cite{Miller2019}. 
-    This is at industry-leading companies who are renowned for hiring top talent and top developer education programs.
+    It is challenging to ensure that C and C++ programs contain no memory safety errors as evidenced by empirical data in industry, where in a presentation at the Linux Security Summit it was shown that in several popular projects such as Firefox, macOS, Ubuntu and Android all had over half of their CVEs~\footnote{\url{https://cve.mitre.org/}} attributed to issues with memory safety~\cite{Gaynor2020}.
+    Similarly, in a presentation by Matt Miller, a security engineer at Microsoft, it is shown that around 70\% of their vulnerabilities that are addressed through security updates are due to memory safety issues~\cite{Miller2019}. 
+    % This is at industry-leading companies who are renowned for hiring top talent and with top developer education programs.
     
     % However the continued use of C and C++, alongside industry mottos such as \emph{``Move fast and break things''}~\cite{Vardi2018} do not help by possibly diminishing the danger of memory safety error exploitation.
     % However due to new regulations such as the GDPR and increasing oversight by regulators, any such exploitations which do expose sensitive data are more commonly exposed to the general public and punished by regulators.
     % An example is a fine of \pounds20m for a British Airways data breach by the British Information Commissioner's Office~\cite{ICO2020}. 
     
-    Unfortunately, simply not using these languages is not an option since their unmanaged nature makes them highly performant, and therefore the best option for systems such as a web browser.
+    Unfortunately, simply not using C or C++ is not an option since their unmanaged nature allows for high performance, and therefore the best option for systems with strict or high requirements.
     Engineers at both Microsoft~\cite{Thomas2019} and Mozilla~\cite{Hostfelt2019} converge on Rust~\cite{Balasubramanian2017} as a possible solution.
-    Rust is a systems language that offers similar performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model also guarantee memory safety.
+    Rust is a systems language that offers similar performance as C and C++~\cite{Lin2016}, however its linear type system and memory ownership model guarantee memory safety.
     The rewriting of a program in a new language, namely from C++ to Rust, is a colossal undertaking, especially given that Rust has a reputation for being difficult to learn~\cite{Astrauskas2019}.
-    Instead, modern C++ guidelines encourage the use of \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create memory or resource handles which automatically eliminate entire classes of memory safety errors.
-    Yet, we encounter further problems as C++ programs either do not actively follow this advice, or are \emph{legacy} programs that were written before these features were introduced to the language.
+    Instead, modern C++ guidelines encourage the use of \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create compiler managed resource handles.
+    Their correct use eliminates the three previously identified classes of memory safety errors.
+    Yet, we encounter further problems as C++ programs either do not actively follow this advice, or are \emph{legacy} programs which were written before these features were introduced to the language.
     
-    We therefore propose a solution in the form of a tool, \emph{ptr-tidy}~\cite{Usov2021}, to analyse and automatically refactor programs to follow the recommended use of smart pointers where the analysis can determine that such a change is syntactically correct and does not change the runtime behaviour of the program. 
+    We therefore propose a solution in the form of a tool, \emph{ptr-tidy}~\cite{Usov2021}, to analyse and automatically refactor programs to follow the recommended use of smart pointers where the analysis can determine that such a change is correct and does not change the runtime behaviour of the program. 
     
-    \begin{listing}
+    \begin{figure}
+        \centering
         \inputminted{c++}{code/leak.cpp}
+        \includegraphics{images/arrow.pdf}
         \inputminted{c++}{code/fix-leak.cpp}
-        \caption{Example of a memory leak using manual management and how smart pointers correct this. Lines 4 and 5 show how interruptions in the program control flow can mistakenly cause memory leaks and how smart pointer correct this by automatically inserting all needed delete statements at compile time. All necessary headers are omitted for brevity}
+        \caption{Example of a memory leak using manual management and how smart pointers correct this problem. Lines 4 and 5 show how interruptions in the program control flow can mistakenly cause memory leaks as the \texttt{delete} statement is never reached. Smart pointers correct this by automatically inserting delete statements at all necessary locations at compile time. All necessary headers are omitted for brevity}
         \label{lst:motivating-example}
-    \end{listing}
+    \end{figure}
     
-    We provide a motivating example in \autoref{lst:motivating-example} where the first version of the function could have several control flow executions where the \texttt{Circle} object will leak.
-    The example seems quite trivial, but can suddenly be quite non-trivial if the conditions in the \texttt{if} statement become calls into external libraries, which may or may not throw an exception.
+    We provide a motivating example in \autoref{lst:motivating-example} where the initial version of the function has several control flow statements that could cause the \texttt{Circle} object to never be freed.
+    The example can seem trivial as all the possible executions of the program are easy to visualise, but can suddenly be rather non-trivial if the conditions in the \texttt{if} statement become calls into external libraries, which may throw an exception and cause the \texttt{delete} statement to again not be reached.
 
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -87,25 +90,25 @@
     \section{Related Work}\label{sec:related-work}
     
     Our work closely relates to work done around the field of \emph{source code rejuvenation}, as defined by \citet{Pirkelbauer2010}. 
-    We exactly aim replace outdated coding patterns with newer, higher-level abstractions, as well as fitting the notion that this tool would be applied once to a codebase, rather than be a reoccurring task.
-    We will however use the terms rejuvenation and refactoring interchangeably in this paper as it is a term that most developers are familiar with.
+    We exactly aim to replace outdated coding patterns with newer, higher-level abstractions, as well as fitting the notion that this tool would be applied once to a codebase, rather than be a reoccurring task.
+    We will however use the terms rejuvenating and refactoring interchangeably in this paper as it is a term that most developers are more familiar with.
     
-    We believe research in this area is going to increase, as languages move and evolve much quicker than can be supported in enterprise environments, resulting in accumulating technical debt. 
+    We believe research in this area is going to increase, as languages move and evolve much quicker than can be supported in enterprise environments~\cite{Overbey2009, Favre2005}, resulting in accumulating technical debt. 
     This is supported by the fact that other relevant work has been completed on this subject.
     
-    First and foremost, we have evidence that this is a problem that exists in industry through a paper by \citet{Wright2013} which describes a tool used at Google for running such rejuvenations across a large codebase. 
+    First and foremost, we have evidence that this is a problem that exists in industry through a paper by \citet{Wright2013} which describes a tool used at Google for running such rejuvenations across a large C++ codebase. 
     \citet{Wright2013} show an example of running a simple rejuvenation of upgrading an API call.
-    They use Clang for the parsing of code into an AST and traverse the tree to identify and perform simple refactorings.
+    They use Clang for the parsing of code into a syntax tree and traverse the tree to identify and perform simple refactorings.
     Their flexible design allows them to implement many different simple refactorings using the same tool, rather than the focus we have for a single specific refactoring goal.
 
     Secondly, there has been separate academic research into rejuvenation tools such as the work by \citet{Huck2016} and \citet{Kumar2012}.
-    The former also uses the Clang and AST driven approach like \citet{Wright2013}, while the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
-    We have not evaluated IPR as a representation compared to the Clang AST, but we can however comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation that Clang has, as well as it being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
+    The former also uses the Clang driven approach like \citet{Wright2013}, while the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
+    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
     
-    There has also been industry interest in automatic rejuvenation tools between languages rather than within the same language. 
-    This is done either to increase the use of a new, improved language by creating creating tools to aid transition, or in order to reuse existing compilers.
+    There has also been industry interest in automatic rejuvenation tools \emph{between} languages rather than \emph{within} the same language. 
+    This is done either to increase the use of a new, improved language by creating tools to aid transition, or in order to reuse existing compilers.
     For example, the Kotlin language team created the J2K~\footnote{\url{https://github.com/JetBrains/kotlin/tree/master/j2k}} transpiler in order to entice Java developers to switch to a language with improved language features such as null safety~\cite{Mateus2019}. 
-    Similarly, several new languages such as Typescript and Dart have been recently developed which were designed not to be used by themselves, but to be transpiled to the popular Javascript language.
+    Similarly, several new languages such as Typescript~\footnote{\url{https://www.typescriptlang.org/}} and Dart~\footnote{\url{https://dart.dev/}} have been recently developed which were designed not to be used by themselves, but to be transpiled to the popular Javascript language.
     These languages aim to solve shortcomings of the output language, whilst reusing the existing mature and efficient compilers or interpreters.
 
 
@@ -116,24 +119,25 @@
     
     \subsection{Using Smart Pointers for Memory Management}\label{subsec:using-smart-pointers-for-memory-management}
 
-    Generally pointers are used to give the program access to a resource that cannot be directly included in the program itself, such as allocated memory or a file.
+    Generally, pointers are used to give a program access to a resource that cannot be directly included in the program itself, such as allocated memory or a file.
     Pointers can also be used to pass large resources to functions without needing to create a copy, which would have a performance impact. 
     
     Pointers can be created for objects both on \emph{the stack and the heap}~\cite{Stroustrup2000}. 
-    The stack is an small memory store automatically managed for us by the compiler and is suitable for placing small, fixed sized parameters and arguments, such as perhaps loop counter variables.
-    However, when objects must live beyond the lifetime of the current function call or if we do not know the size of an object until runtime, then we must storage these objects on the heap, occasionally called the \emph{free store}. 
+    The stack is a small memory store automatically managed for us by the compiler and is suitable for placing object whose size is known at compile time, such as simple integers like loop counter variables.
+    However, when objects must live beyond the lifetime of the current function call or if we do not know the size of an object until runtime, then we must store these objects on the heap, also called the \emph{free store}. 
     Unlike the stack, the memory on the heap must be explicitly managed by the programmer.
     
-    However Stroustrup claims that pointers to objects allocated on the free store are dangerous and a \emph{plain old pointer}, or raw pointer as we will refer to them, should not be used to represent ownership~\cite{Stroustrup2018}.
+    However Stroustrup claims that pointers to objects allocated on the free store are dangerous and a plain old pointer, or \emph{raw pointer} as we will refer to them, should not be used to represent ownership of such objects.~\cite{Stroustrup2018}.
 
-    Instead we can use \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create resource handles which automatically eliminate resource leaks with no, or very little added overhead.
+    Instead we can use \emph{smart pointers}~\cite{Dimov2003} and the concept of \emph{RAII (Resource Acquisition Is Initialisation)}~\cite{Stroustrup2000} to create resource handles with no, or very little added overhead.
     RAII means that the management of a resource, namely its acquisition and release, is bound to its lifetime. 
-    In the simplest case, this means that when a resource exists the scope of a function or method, it is released automatically.
-    
-    The first type of smart pointer are \emph{unique pointers} which have only a single unique owner at any time and therefore are ideal for resources which may not be copied, such as perhaps a global session dictionary.
-    We can see how unique pointers and RAII work from out motivating example in  \autoref{lst:motivating-example}.
-    Even though the \texttt{Circle} object is placed on the heap, the compiler can manage the smart pointer for us so that in all cases where the lifetime of the object ends, the object will be freed and ensures the resource will not leak. 
-    The ownership of a unique pointer can be transferred between variables using \texttt{std::move} which moves the ownership from one variable to another, making the original reference invalid.
+    In the simplest case, this means that when a resource exits the scope of a function or method, it is released automatically.
+    We can see how smart pointers and RAII work in our motivating example in  \autoref{lst:motivating-example}.
+    Even though the \texttt{Circle} object is placed on the heap, the compiler can manage the smart pointer for us so that in all the cases where the lifetime of the object ends, the object will be released. 
+
+    The first type of smart pointer are \emph{unique pointers}, which can have only a single unique owner at any time and therefore are ideal for resources which may not be copied.
+    The resource managed by a unique pointer is released when the current owner exits the scope of the function or method it is contained in.
+    The ownership of a unique pointer can be transferred between variables using \texttt{std::move} which \emph{moves} the ownership from one variable to another, making the original owner invalid.
     % TODO insert example diagram possibly
 
     The second type of smart pointer are \emph{shared pointers} which are used for resources which may not necessarily have a single unique owner and so several owners \emph{share} ownership to the resource.
@@ -149,33 +153,34 @@
         \label{fig:llvm-design}
     \end{figure*}  
     
-    As seen in \autoref{sec:background}, much similar research uses Clang and LLVM.
+    As seen from \autoref{sec:related-work}, much similar research uses Clang and thus LLVM.
     LLVM~\cite{Lattner2004} is a compiler infrastructure project consisting of several compiler and toolchain technologies. 
-    LLVM is centrally designed around a language independent intermediate representation (IR), which can be created by a number of language front-ends and is used by a number of architecture back-ends to generate machine code. 
-    Program optimisations can then be applied by portable and reusable transformations on the IR.
-    Any improvement in back-end code generation, as well as any new or improved IR optimisers can then benefit any of the supported language front-ends.
-    It is therefore visible that this allows for a very modular and extensible design which can be seen in \autoref{fig:llvm-design}.
+    LLVM is centrally designed around a language independent intermediate representation (IR), which can be created by a number of language front-ends and is used by a number of back-ends to generate machine code. 
+    Programs can then be optimised by applying portable and reusable transformations on the IR.
+    Any improvement in back-end machine code generation, as well as any new or improved IR optimisations therefore benefit all of the language front-ends.
+    It is therefore visible that this allows for a very modular and powerful design which can be seen in \autoref{fig:llvm-design}.
     
-    Clang~\cite{Lattner2008} is such an LLVM front-end for C, C++ and a variety of other similar languages such as OpenGL.
+    Clang~\cite{Lattner2008} is a LLVM language front-end for C, C++ and a variety of other extensions such as OpenGL.
     By using the LLVM infrastructure, it allows for faster and more efficient compilation of C++ compared to existing, older compilers such as the GNU Compiler Collection~\footnote{\url{https://gcc.gnu.org/}} (GCC)~\cite{Lattner2008}.
-    However, most importantly for our research, the design of GCC makes it unsuitable for integration with other projects, such as analysis tools, whereas Clang allows access to several analysis tools as well as the Clang abstract syntax tree (AST) and parser internals via a standard API such as consumers and visitors~\cite{Duffy2014}.
+    However, most importantly for our research, the design of GCC makes it unsuitable for integration in other projects such as analysis tools, whereas Clang allows access to several analysis tools as well as the Clang abstract syntax tree (AST) and parser internals via a standard API such as consumers and visitors~\cite{Duffy2014}.
     
     \begin{figure}
         \centering
         \inputminted{c++}{code/code-to-ast.cpp}
         \includegraphics{images/code-to-ast.pdf}
-        \caption{Example of converting C++ code to Clang AST. All diagrams show equivalent representation of a small C++ code snippet.}
+        \caption{Example of converting C++ code to the Clang AST. The Clang AST is rich in information and could be used to reconstruct the original C++ code snippet.}
         \label{fig:code-to-ast-example}
     \end{figure}
     
-    Further more, Clang also explicitly provides the \emph{LibTooling} C++ library for the creation of tools that leverage the Clang parsing front-end and AST.
-    The Clang AST is different from ASTs produced by some other compilers in that it closely resembles both the written C++ code and the C++ standard~\footnote{\url{https://clang.llvm.org/docs/IntroductionToTheClangAST.html}}.
+    Further more, Clang also provides the \emph{LibTooling} C++ library for the creation of tools that leverage the Clang parsing front-end and AST.
+    The Clang AST is different from ASTs produced by some other compilers in that it closely resembles the written C++ code~\footnote{\url{https://clang.llvm.org/docs/IntroductionToTheClangAST.html}}.
     For example, we can see in \autoref{fig:code-to-ast-example} that the AST stores much syntactic as well as semantic information in the form of source code locations and variable initialisation styles.
     The LLVM authors remark that this makes it very suitable for refactoring tools.
     
-    The LLVM IR represents a language-independent, static single assignment (SSA)~\cite{Rosen1988} representation of the program.
-    Variables in in SSA form can only be assigned once, which allows us to efficiently generate compact definition-usage graphs, which enable developers to simplify many dataflow optimizations and enables fast, flow-insensitive algorithms~\cite{Lattner2004}.
+    The LLVM IR is a language-independent, static single assignment (SSA)~\cite{Rosen1988} representation of a program.
+    Variables in SSA form can only be assigned once, which allows us to efficiently generate compact definition-usage graphs, which enable developers to simplify many dataflow optimizations and enables fast, flow-insensitive algorithms~\cite{Lattner2004}.
     
+    \vskip50pt
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -184,16 +189,16 @@
     
     \subsection{Parsing}
     
-    The first capability our tool would need is to be able to parse C++ code.
-    Doing this ourselves would be an undertaking that would take a significant amount of time in order to create a complete parser due to the size and complexity of the C++ language, therefore it was decided early to use an existing parser.
-    The information in \autoref{subsec:clang-and-llvm} outlines why Clang is the most suitable parser to use, with the other benefit that it brings such as \emph{LibTooling}. 
+    The first capability our tool needs is to be able to parse C++ code.
+    Doing this ourselves would be an undertaking that would take a significant amount of time in order to create a complete parser due to the size and complexity of the C++ language. Therefore it was decided early to use an existing parser.
+    The information in \autoref{subsec:clang-and-llvm} outlines why Clang is the most suitable parser to use, with the other benefits that it brings such as the \emph{LibTooling} library. 
     
     \subsection{Analysis}\label{subsec:methodology-analysis}
     
-    Next, our tool would need to be able to identify specifically which pointers are suitable for refactoring.
-    An \emph{unique pointer} is a smart pointer object that represent a single unique owner of a region of memory at any time. 
-    We will therefore need to develop a static analysis algorithm to identify the maximum number of owners a region of memory has throughout all points of a program. 
-    If a memory region has at most a single unique owner at a time, we can refactor the initialising raw pointer to a unique pointer, otherwise the pointer can be refactored to a shared pointer.    
+    Next, our tool would need to be able to identify specifically which pointers are suitable for refactoring into smart pointers.
+    An \emph{unique pointer} is a smart pointer that represents a single unique owner of a region of memory at any point in time.
+    We will therefore need to develop a static analysis algorithm to identify the maximum number of owners a region of memory has throughout all points of the program. 
+    If a memory region has at most a single unique owner, then we can refactor the initialising raw pointer to be a unique pointer, and otherwise to a shared pointer.    
     This analysis will need to ensure that its result is correct, and will inevitably have to make some conservative assumptions about the program.
     
     \begin{figure}
@@ -203,7 +208,7 @@
         \label{fig:memory-pointers}
     \end{figure} 
     
-    A key intuition is that a region of memory, subsequent to its initialisation, is only able to gain additional owners if access to the region of memory is \emph{shared} to another variable, that is if a pointer to this memory is copied to a another pointer, at which point the original owner is longer the unique owner.
+    A key intuition is that a region of memory, subsequent to its initialisation, is only able to gain additional owners if access to the region of memory is \emph{shared} to another variable, that is if a pointer to this memory is copied to a another pointer, at which point the original owner is no longer the unique owner.
     If we copy the pointer to a global variable, the variable could suddenly be read by any other running threads in the program, so we have to take a conservative decision that the memory no longer has a single unique owner.
     If we copy the pointer to a local variable, then if the original variable remains in use, the memory will have two unique owners. 
     However if the original pointer is not used beyond being copied, this could actually be modelled as a \emph{transfer} of ownership, and the memory will still have a single unique owner at all points of the program. 
@@ -212,24 +217,24 @@
     We can formalise our key intuition by introducing the concept of \emph{escape analysis}.
     Escape analysis is used to determine whether an object \emph{escapes} or is accessible from outside the method or thread that created the object~\cite{Choi1999}.
     It has been used in languages such as Java~\cite{Choi1999} to determine whether an object which is created within a method escapes.
-    If it does not escape, meaning it is only used locally in the method, then it can be allocated on the stack rather than the heap as a performance optimisation.
+    If it does not escape, meaning it is only used locally in the method, then the object can be allocated on the stack rather than the heap as a performance optimisation.
     LLVM also uses escape analysis for a similar kind of optimisation~\footnote{\url{https://github.com/llvm/llvm-project/blob/main/llvm/lib/Analysis/CaptureTracking.cpp}}.
     
     It is now visible that the invariant of the unique pointer are only violated when:
     \begin{itemize}
         \item a pointer escapes, as then we do not know where or how the pointer may be used, so we must take a conservative approach and assume the memory region no longer has at most a single unique owner.
-        \item a pointer is does not escape but access to the memory is shared rather than transferred to a local variable. 
+        \item a pointer does not escape but access to the memory is shared rather than transferred between local variables. 
     \end{itemize}
     
     \subsection{Analysis Target}\label{subsec:methodology-analysistarget}
     
     The existing escape analysis in LLVM is implemented to operate on LLVM IR code, as the IR representation, as mentioned in \autoref{subsec:clang-and-llvm}, is well suited for efficient analysis algorithms. 
-    However, much of the existing work from \autoref{sec:related-work} which use Clang perform both their analyses and their source code refactoring on the Clang AST.
-    We however propose an improved novel design which uses the Clang AST for parsing and refactoring and the LLVM IR for simple and efficient analysis.
+    However, much of the existing work in \autoref{sec:related-work} use Clang and the Clang AST to perform their parsing, analyses and their source code refactoring..
+    We however propose an improved novel design which uses the Clang AST for parsing and refactoring and the LLVM IR for efficient analysis.
     
     For the same input file, we can use the \emph{LibTooling} library to generate an AST and IR in-memory representation.
-    Then, for any variable declaration (\emph{VarDecl}) in the Clang AST which allocates new memory on the heap, we locate this declaration in the IR.
-    This is possible as we can instruct Clang to not discard variable names using a \texttt{fno-discard-value-names} flags, and as the combination of function signature and variable name in the translation unit (\emph{cpp file}) must be unique according to the One-definition rule~\cite{C++17}. 
+    Then, for any variable declaration (\texttt{VarDecl}) in the Clang AST which allocates new memory on the heap, we locate this declaration in the IR.
+    This is possible as we can instruct Clang to not discard variable names using a \texttt{fno-discard-value-names} flag, and as the combination of function signature and variable name in the translation unit must be unique according to the One-definition rule~\cite{C++17}. 
     
     \begin{listing}
         \inputminted{llvm}{code/code-to-ir.ll}
@@ -237,12 +242,13 @@
         \label{lst:code-to-ir}
     \end{listing}
     
-    In \autoref{fig:code-to-ast-example}, given the variable declaration for the variable \texttt{a}, then as it is not a global variable, we can walk its parent nodes until we reach a \emph{FunctionDecl}.
-    We are now able to use the function name to find the corresponding function declaration in the IR module, which can be seen in  \autoref{lst:code-to-ir}.
+    In \autoref{fig:code-to-ast-example}, given the variable declaration for the variable \texttt{a}, then as it is not a global variable, we can visit its parent nodes in the AST until we reach a \texttt{FunctionDecl}.
+    We can then use the name of the \texttt{FunctionDecl} to find the corresponding function declaration in the IR module, which can be seen in  \autoref{lst:code-to-ir}.
     Note that although the \texttt{main} function name corresponds exactly, other function names in the IR module will have mangled names~\footnote{\url{https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_72/rzarg/name_mangling.html}}.
     We again use Clang library functions to mangle function names if necessary so they can be found in the IR. 
-    Given a function in the IR, we can use its symbol table to use the declaration name to find the IR value on which we will perform our analysis.
-    
+    Given the IR function declaration, we can find the corresponding IR value of our initial variable \texttt{a} by finding the name of the variable inside its symbol table.
+    This IR value can then be used to perform our analysis.
+
     \subsection{Choice of Escape Analysis Algorithm}
     
     The initial choice of escape analysis algorithm is the existing LLVM algorithm mentioned in \autoref{subsec:methodology-analysis}.
@@ -260,22 +266,22 @@
     \subsection{Source code rewriting}
     
     The analysis gives a result of whether the IR value escapes, a boolean \texttt{true} or \texttt{false}.
-    For a \texttt{false} result, the value declaration is refactored into a unique pointer, otherwise a shared pointer.
-    However, the rewriting is identical for both cases with just the string tokens that we replace for the original type differing.
+    For a \texttt{false} result, meaning the value does not escape, the variable declaration is refactored into a unique pointer, and otherwise a shared pointer.
+    However, the rewriting of the source code is identical for both cases with just the string tokens that replace the original source code differing.
     The rewriting was developed using a rule based approach, using test driven development (TDD) as this allowed rapid but correct development by continuously being able to check that additional created rules still cause all the tests to pass, causing no regressions. 
-    The five cases of code (\emph{or rewriting rules}) that needs to be rewritten are:
+    The five cases of code (\emph{or the rewriting rules}) that needs to be rewritten are:
     \begin{itemize}
-        \item Declaration types.
-        \item Variable initialisation and assignment expressions.
+        \item The type of a variable declaration
+        \item Variable initialisation or assignment expressions.
         \item Pointer delete statements.
         \item Function return types.
-        \item Pointer Usages.
+        \item Function call expressions that expect raw pointers.
     \end{itemize}
     
-    Rewriting declaration types are the easiest of all. We can directly replace the type of the variable declaration node that we already have access to. 
-    For example for \mintinline{c++}{int *ptr}, we can extract the type of the variable, and format it into the string \mintinline{c++}{"std::shared_ptr<{}>"} or \mintinline{c++}{"std::unique_ptr<{}>"}, where the \texttt{\{\}} represent the replacement field.
+    Rewriting the type of a variable declaration is the easiest of all. We can directly replace the type of the variable declaration node that we already have access to. 
+    For example for \mintinline{c++}{int *ptr}, we can extract the type of the variable, and format it into the string \mintinline{c++}{"std::shared_ptr<{}>"} or \mintinline{c++}{"std::unique_ptr<{}>"}, where \texttt{\{\}} represent the replacement field, which in this case will be formatted with the string \mintinline{c++}{int}.
     
-    Initialisation and assignment expressions are less simple due to two reason.
+    Initialisation and assignment expressions are less simple due to two reasons.
     First of all, the initialisation of a variable does not necessarily have to occur immediately at the point of declaration.
     Therefore we need to find all the points of initialisation or value assignment to a variable in the AST.
     Secondly, there are many different ways to initialise a variable~\cite[p.~196]{C++17}, with the most common initialisation methods using:
@@ -284,23 +290,22 @@
         \item Equal sign \mintinline{c++}{std::string s = "hello"}
         \item parentheses expression list \mintinline{c++}{std::string s("hello")} 
     \end{itemize}
-    For pointer variables, this is convoluted even more depending on if the pointer gets initialised using an existing pointer \mintinline{c++}{int* a = nullptr; int *b = a;}, or if it gets initialised using a new statement \mintinline{c++}{auto p = new Circle{Point{0,0},10}}.
+    For pointer variables, this is convoluted even more depending on if the pointer gets initialised using an existing pointer \mintinline{c++}{int* a = nullptr; int *b = a;}, or if it gets initialised using a \mintinline{c++}{new} statement \mintinline{c++}{auto p = new Circle{Point{0,0},10}}.
     In the case of a new statement, we can initialise the rewritten smart pointer using a value initialiser \mintinline{c++}{std::make_unique<>()} or the shared pointer equivalent. 
-    Otherwise, we can create a smart pointer from a pointer value using by the default equal sign copy initialiser or parentheses expression list. 
+    Otherwise, we can initialise the rewritten smart pointer from an existing pointer by using the default equal sign copy initialiser or parentheses expression list. 
     
-    Rewriting pointer deletion statements also require us to traverse the AST to find \mintinline{c++}{delete} statements for the variable declaration node that we are rewriting.
-    However, they do not require any complicated logic, and we can upon finding relevant statements remove them from the source code.
+    Rewriting pointer delete statements also requires us to traverse the AST to find \mintinline{c++}{delete} statements for the variable declaration node that we are rewriting.
+    However, this does not require any complicated logic and we can upon finding relevant \mintinline{c++}{delete} statements simply remove them from the source code.
     
     If the variable declaration is a variable that gets returned at the end of the function, then the return type of the function signature will need to be rewritten too. 
-    We explicitly check for each variable declaration that we handle if it gets returned, and if so, we can rewrite the function return type the same way that we handle variable declaration types. 
+    We explicitly check for each variable declaration that we handle if it gets returned, and if so, we can rewrite the function return type the same way that we handle the types of variable declarations.
     
-    Lastly, smart pointer have overloaded operators for the arrow \texttt{->} and dereference \texttt{*} operators so that they behave identically as if the value was a raw pointer.
-    This simplifies our task as it reduces the amount of rewriting we have to do for each usage of a specific pointer value.
-    However, there is no such overloaded operator for passing smart pointer as function arguments. 
-    In this case, the compiler will find a type error, when it might expect a type such as \mintinline{c++}{int *}, but actually receives \mintinline{c++}{std::unique_ptr<int>}. 
-    Therefore, we again have to traverse the AST to find all function call expressions which involve the variable declaration that we are currently handling, and we need to add \mintinline{c++}{get()} calls to the smart pointer values to get a raw pointer to the managed objects.
-    
-    We use the Clang \emph{Rewriter}\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1Rewriter.html}} class as a high level abstraction compared to handling files and text buffers ourselves, which would likely be error-prone for buffer overflows.
+    Lastly, smart pointers have overloaded operators for the arrow \texttt{->} and dereference \texttt{*} operators so that they behave identically as if the value was a raw pointer.
+    This simplifies our task as it reduces the amount of rewriting we have to do for each use of the new smart pointer.
+    However, there is no such overloaded operator for passing smart pointers as function arguments. 
+    In this case, the compiler will find a type error as it might expect a type such as \mintinline{c++}{int *}, but actually receives \mintinline{c++}{std::unique_ptr<int>}. 
+    Therefore, we again have to traverse the AST to find all function call expressions which involve the current variable declaration and add \mintinline{c++}{get()} calls in order to get a raw pointer to the managed object.
+    We use the \emph{Clang Rewriter}\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1Rewriter.html}} class as a high level abstraction compared to handling files and text buffers ourselves.
     
     \begin{figure}
         \centering
@@ -324,13 +329,14 @@
         }
         \end{minted}
         
-        \caption{An example of all the rewriting rules except pointer delete statements. This example solely shows rewriting and does not necessarily follow respect any smart pointer viability analyses. We see how both the declaration and equal sign copy initialisation of \texttt{a} have been rewritten to into a \texttt{shared\_ptr}. All the uses of \texttt{a}  that require a raw pointer have a \texttt{get()} call added to obtain the managed memory.}
+        \caption{An example of all the rewriting rules except pointer delete statements. This example solely shows rewriting and does not necessarily respect any smart pointer viability analyses. We see how both the declaration and equal sign copy initialisation of \texttt{a} have been rewritten to into a \texttt{shared\_ptr}. All the uses of \texttt{a}  that require a raw pointer have a \texttt{get()} call added to obtain the managed memory.}
         \label{fig:rewriting}
     \end{figure}
     
     In \autoref{fig:rewriting}, we show an example that incorporates all the cases in which code needs to be rewritten except pointer delete statements.
-    It is visible how in the majority of cases, the first two rules will be applicable as every new smart pointer need to have the correct type and be initialised to the right type of object. 
-    The fifth rule will also likely be applicable in most cases as variables tend to not be unused and variables which were pointers will be used in functions expecting pointers, as they otherwise could be stack variables.
+    It is visible how in the majority of cases, the first two rules will always be applicable as every new smart pointer needs to have the correct type and be initialised to an object of the right type.
+    The fifth rule will also likely be applicable in most cases as variables tend to not be
+    unused and therefore will be used in functions that are expecting a raw pointer.
     
     \subsection{System Design}\label{subsec:methodology-systemdesign}
     
@@ -358,13 +364,13 @@
 
     \section{Evaluation}\label{sec:evaluation}
     
-    Through our research, we would like to answer the question of whether our implemented tool can truly improve C++ code by seeing if the tool can be used outside small examples on larger existing programs, as well as if the refactored results produce code which can be compiled and can be judged to be better.
-    Secondly, if the tool is able to do this, we want to evaluate how well the tool performs by analysing the effectiveness of the analysis algorithms.
+    Through our research, we would like to answer the question of whether our implemented tool can truly improve C++ code by seeing if the tool can be used not only on small test examples but also on larger existing programs. We would also like to determine if the rejuvenation produces code which can be compiled and can be judged to be better.
+    Then, if the tool is able to do this, we want to evaluate how well the tool performs by analysing the effectiveness of the analysis algorithms.
 
     In order to evaluate the objectives above, hypotheses were made:
     
     \begin{itemize}
-        \item \textbf{Hypothesis 1} The automatic translation of raw pointers into smart pointers can be used to make existing C++ code more modern, safe and extendable.
+        \item \textbf{Hypothesis 1} The automatic translation of raw pointers into smart pointers can be used to make existing C++ code more modern and safe.
         \item \textbf{Hypothesis 2} The tool can reliably identify situations in which unique pointers should be used.
     \end{itemize}
     
@@ -372,23 +378,23 @@
     We will answer hypothesis 1 through a case study and we will answer hypothesis 2 through the gathering of relevant metrics on several more projects.
     This section will detail the justification, process, and results for these experiments.
     
-    We run our experiments on a Windows 10 Pro x64 machine using the Windows Subsystem for Linux, with an AMD Ryzen 5 PRO 4650U and 16 GiB RAM, using TinyXML-2 v8.0.0.
+    We run our experiments on a Windows 10 Pro x64 machine using the Windows Subsystem for Linux, with an AMD Ryzen 5 PRO 4650U and 16 GiB RAM.
     The ptr-tidy tool was compiled with GCC v10.2.0 using CMake release profile, using Clang and LLVM v11.1.0 libraries.
 
     \subsection{TinyXML-2 Case Study}\label{subsec:case-study}
     
-    In order to answer hypothesis 1, it was decided to run a case study instead of applying the tool in large on a range of open source projects. 
-    This was decided as an analysis into a well chosen target project will be able to show relevant success and failure cases that we can extrapolate onto more general C++ projects of the same kind. 
-    If the impact of the success cases outweighs the the faults of the failure cases, then we will be able to judge the our hypothesis as being true.
+    In order to answer hypothesis 1, it was decided to run a case study on a specifically chosen C++ project.
+    This was decided as an analysis into a well chosen target project will be able to show relevant success and failure cases of the tool.
+    If the impact of the success cases outweighs the faults of the failure cases, then we will be able to judge our hypothesis as being true.
     
-    We decided on using the \emph{TinyXML-2} library as our chosen case study~\footnote{\url{https://github.com/leethomason/tinyxml2}}.
+    We decided on using the \emph{TinyXML-2}~\footnote{\url{https://github.com/leethomason/tinyxml2}} library as our chosen case study.
     TinyXML-2 is a C++ XML parsing library that can parse an XML document and build from that a Document Object Model that can be read, modified, and saved.
     TinyXML-2 has over three thousand \emph{GitHub stars} which puts it in the top 1\% of projects on the hosting website, which can be used as a rough metric for its popularity and good code quality~\cite{Sanatinia2016}.
-    It is also for example used in the \emph{libigl}~\cite{Libigl} geometry processing library,  which itself is used by a variety of large industry companies.
+    It is also used in the \emph{libigl}~\cite{Libigl} geometry processing library,  which itself is used by a variety of large industry companies.
     It is released under a \emph{zlib} license~\footnote{\url{https://opensource.org/licenses/Zlib}} which allows us to use and alter the software.
-    What makes library a particularly attractive choice is the simplicity of the library.
+    What makes the library a particularly attractive choice is the simplicity of the library.
     The library does not make use of exceptions, RTTI or the STL~\cite{C++17}, and therefore most importantly does not make use of smart pointers. 
-    The library is also around three thousand lines of code in length, making it large enough to likely have a variety of edge cases, whilst remaining small enough for manual inspection.
+    The library is also around three thousand lines of code in length, making it large enough to likely have a variety of interesting features to analyse, whilst remaining small enough for manual inspection.
     
     \begin{listing}
         \inputminted{cpp}{code/tinyxml2-example.cpp}
@@ -397,8 +403,8 @@
     \end{listing}
     
     In particular, what makes this suitable for the target of our case study over perhaps other similarly small and simple libraries is that due to parsing varying documents at runtime, the library is particularly heavy in pointer logic and memory allocations.
-    We can in \autoref{lst:tinyxml-refactor-example} an example of a method from the library which would be well suited for refactoring to use smart pointers.
-    The heavy use of pointers and memory allocation is what leads us to believe that the case study into this library will generalise well onto all other C++ projects.
+    We can see in \autoref{lst:tinyxml-refactor-example} an example of a method from the library which would be well suited for refactoring to use smart pointers.
+    The heavy use of pointers and memory allocation is what leads us to believe that analysis into this library will generalise well onto other C++ projects.
     
     \subsubsection{Experiment}
     
@@ -410,7 +416,7 @@
     
     We first generate a simple \emph{compilation database}~\footnote{\url{https://clang.llvm.org/docs/JSONCompilationDatabase.html}}, as seen in \autoref{lst:tinyxml-compilation-database}, for the TinyXML-2 library, as this is what our tool uses to resolve compilation options. 
     More complex libraries or applications would have their compilation options and any include and link libraries included in compilation command.
-    The user of our tool can easily generate a compilation database for the project that they wish to rejuvenate using their build tool, such as \emph{CMake}.
+    The user of our tool can easily generate a compilation database for the project that they wish to rejuvenate using their build tool, such as \emph{CMake}~\footnote{\url{https://cmake.org/}}.
     
     We can then run the tool on any file which has a compilation command defined in the compilation database, such as the \texttt{tinyxml2.cpp} file from our chosen library.   
     We include the result of the analysis as debug messages during the running of the tool, in order to aid our evaluation of the case study, such as:
@@ -437,10 +443,10 @@
         \label{lst:tinyxml-refactor-example-refactored}
     \end{listing}
     
-    We can first and foremost see in \autoref{lst:tinyxml-refactor-example-refactored} the result of the rejuvenation our candidate method in \autoref{lst:tinyxml-refactor-example}.
+    We can first and foremost see in \autoref{lst:tinyxml-refactor-example-refactored} the result of the rejuvenation on our candidate method in \autoref{lst:tinyxml-refactor-example}.
     
     We can see that we achieve a similar refactoring as in \autoref{fig:rewriting}. 
-    The smart pointer is initialised using using the pointer copy initialiser.
+    The smart pointer is initialised using the pointer copy initialiser.
     We see identical refactoring in the other \texttt{XMLDocument:New...} methods. 
     
     \begin{figure}
@@ -505,52 +511,89 @@
     Not a single function argument was refactored to use smart pointers, even though arguments are included in the analysis of the program, since the \texttt{VarDecl Matcher} also matches on arguments (\texttt{ParmVarDecl}) as it is a subclass~\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1ParmVarDecl.html}}.
     Upon investigation, this remains largely an issue due to poor memory aliasing guarantees in the language~\cite{C++17}. 
     Parameters are by default always not marked \texttt{noescape} and \texttt{noalias}~\footnote{\url{https://clang.llvm.org/docs/AttributeReference.html\#noalias}} in the generated LLVM IR, as can be seen in \autoref{fig:function-arguments}.
-    If we enable Clang compiler optimisations when generating the IR, the compiler correctly identify that \texttt{p} cannot escape within the function, giving it a signature in the IR of 
+    If we enable Clang compiler optimisations when generating the IR in \autoref{fig:function-arguments}, the compiler correctly identify that \texttt{p} cannot escape within the function, giving it a signature in the IR of 
     \mintinline{llvm}{
     (i32* nocapture %p)
     }.
     However this would break the AST to IR correspondence that we established in \autoref{subsec:methodology-analysistarget} as variables that exist in the AST may find themselves optimised and removed from the IR or functions can that exist in the AST may find themselves inlined in the IR. 
     Also, we still do not have non-aliasing guarantees so that we know that the object has not escaped before entering the function.
-    What is possible is that we can manually mark a variable in the code as being non-capture and non-alias, such as:
+    What is possible is that we can manually mark a variable in the code as being non-captured and non-aliased, such as:
     \begin{minted}{c++}
     void nonescapingFunc(__attribute__((noescape)) int * __restrict__ p) {
         *p += 100;
     }
     \end{minted}
     This relies however on the Clang compiler specific implementation of the \texttt{noescape} attribute which does not exist in the GCC compiler, as well as the non-standard, compiler specific implementation of the \texttt{restrict} attribute. 
-    Such code therefore is not portable and not standard conforming, making it very unlikely unacceptable for most projects.
+    Such code therefore is not portable and not standard conforming, making it likely unacceptable for most projects.
     This last unlikely case is not currently correctly handled by the LLVM escape analysis to produce a more correct refactoring. 
     The automatic generation of such front-end code however could be possible through the integration of Clang compiler optimisations and related research such as by \citet{Campos2015} for integration into our tool for better performance.
-    The impact this on our tool is that the extent of our analysis is not as complete as we would like it to be, however \autoref{lst:tinyxml-refactor-example-refactored} and \autoref{fig:rewriting-example2} show that we can still achieve desirable results through the analysis of local variables. 
+    The impact this has on our tool is that the extent of our analysis is not as complete as we would like it to be, however \autoref{lst:tinyxml-refactor-example-refactored} and \autoref{fig:rewriting-example2} show that we can still achieve desirable results through the analysis of local variables. 
     
     The tool is particularly effective at refactoring factory methods~\cite{Gamma1995} such as in \autoref{lst:tinyxml-refactor-example-refactored} and other cases where resources are created at the top rather than at the bottom of the function call stack and passed through return values.
     
-    The rejuvated version of the TinyXML-2 library that the tool produces is not directly compilable into an object file, mainly due to edge cases in the rewriting component. 
-    These mainly stem from outdated C++ practises that must be explicitly handled in modern code that has more strict type checking. 
+    The rejuvenated version of the TinyXML-2 library that the tool produces is not directly compilable into an object file, mainly due to edge cases in the rewriting component, causing syntactically incorrect output code.
+    These mainly stem from the use of now outdated C++ practises.
     For example, the initialisation of a pointer using the value \texttt{0}, such as
     \mintinline{c++}{XMLNode* returnNode = 0;} is not recommended as they should be initialised with \mintinline{c++}{nullptr}.
     The rejuvenation of the example into
     \mint{c++}|std::shared_ptr<XMLNode>  returnNode = std::shared_ptr<XMLNode>(0);|
-    therefore causes a type error during compilation.
-        
+    therefore causes a type error during compilation as the \mintinline{c++}{shared_ptr} constructor has stricter type checking. 
+    
     All of the compilation issues currently stem from unimplemented behaviour in the rewriting component rather than the strength or performance of the analysis.
     The size and complexity of the language makes it difficult to ensure that all edge cases are handled by the rewriting component, which can in future development be continuously improved.
-    The fixes that need to be applied can be done by the programmer, with all of the identified fixes in the TinyXML-2 library being a single line in length. 
+    The fixes that need to be applied in order to compile the rejuvenated program can be done manually by the programmer, with all of the identified fixes in the TinyXML-2 library being a single line in length. 
     
-    We do not think this however detracts from the value or usefulness of our tool.
-    Our tool provides fully rejuvenated and compilable programs without any human input needed for simpler inputs, using modern styles of C++.
-    For larger, more complex, older input programs some human input is currently still needed, however the work of our tool still allows the programmer to make their programs more modern and safer in by performing the complex analysis and guiding the programmer towards the needed fixes through compiler errors.
-    This results in the rejuvenated output being obtained easier by removing the need for the programmer to manually understand the structure and style of the programmer and the often complex ownership relations between the various variables in the program. 
+    However, We do not think this detracts from the value or usefulness of our tool.
+    Our tool provides fully rejuvenated and compilable programs without the need for any human input simpler input programs. 
+    These programs are modernised to use features such as smart pointers, which also bring stricter type checking.
+    For larger, more complex, older input programs some human input is currently still needed, however the work of our tool still allows the programmer to make their programs more modern and safer by performing the complex analysis and guiding the programmer towards the needed fixes through compiler errors.
+    This results in the rejuvenated output being obtained easier by removing the need for the programmer to manually understand the structure and style of the program and the often complex ownership relations between the various variables in the program. 
     
-    We therefore believe that the analysis of our tool on the case study of the TinyXML-2 library, even with the identified failure cases, the success of the automated translation and identified success cases allow us to confirm our first hypothesis.
+    We therefore believe that from the analysis of our tool on the case study of the TinyXML-2 library, even with the identified failure cases, the success of the automated translation and identified success cases allow us to confirm our first hypothesis.
     
     \subsection{Analysis of performance on a corpora of projects}
     
-    In order to answer hypothesis 2, it was decided to run analysis of the tool on more various open source projects and gather metrics on the performance of the tool in terms of its performance in successfully identifying pointers, how extensive the rejuvenation in context of the whole program, and some more general runtime characteristics. 
+        \begin{table*}
+    \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
+    \hline
+                                   & \textbf{clipper} & \textbf{happyhttp} & \textbf{jzon} & \textbf{micropather} & \textbf{poisson} & \textbf{polypartition} & \textbf{tinyxml2} & \textbf{xatlas} \\ \hline \hline
+    \textbf{Runtime (ms)}          & 146.521          & 10.540             & 3.140                & 2.429         & 4.471            & 11.885                 & 16.055            & 105.212         \\ \hline
+    \textbf{Escaped Pointer}       & 94               & 22                 & 2                    & 39            & 7                & 46                     & 164               & 235             \\ \hline
+    \textbf{Non-Escaped Pointers}  & 132              & 16                 & 3                    & 34            & 3                & 22                     & 84                & 111             \\ \hline
+    \textbf{Lines of Code Changed}   & 205             & 27                 & 3                    & 57            & 6                & 31                     & 142               & 154             \\ \hline
+    \textbf{Total Lines of Code} & 5035             & 1273               & 1324                 & 1587          & 523              & 2270                   & 5366              & 10318           \\ \hline
+    \end{tabular}    
+    \caption{Data gathered from the rejuvenation of each projects. Total lines of code include both the implementation and header file of each project. Runtime measured in milliseconds as the median of five runs.}
+    \label{table:data}
+    \end{table*}
     
-    It was decided that whilst gathering more projects to test, we would continue to focus on simple, single file libraries such as TinyXML-2 in order to ease the cost of setting up each project to be used by the tool. 
+    \begin{figure*}
+        \centering
+        \includegraphics[scale=0.55]{images/pointers.png}
+        \caption{First graph shows the fraction of non-escaped, and therefore refactored, pointers for each project. This varies from a minimum of 30\% up to a maximum of 60\%, with a mean of 42\%. The second graph shows the number of total pointers compared to the number of total lines in each project.}
+        \label{fig:ratio-pointer}
+    \end{figure*}
+    
+    \begin{figure*}
+        \centering
+        \includegraphics[scale=0.8]{images/lines.png}
+        \caption{Graph showing the fraction of modified lines by the tool compared to the total number of lines in each project, which is the combination of implementation and header files. This varies from a minimum of 0.22\% up to a maximum of 4.07\%, with a mean of 2.18\%.}
+        \label{fig:lines}
+    \end{figure*}
+
+    \begin{figure*}
+        \centering
+        \includegraphics[scale=0.55]{images/time.png}
+        \caption{Graphs of the tool runtime versus the total lines of code in each project and the total number of pointers that was analysed. The x axis for both graphs are plotted on a log scale. This is for clarity purposes in order to emphasise the two outliers consisting of the Clipper and Xatlas libraries. Time was measured in microsecond using the Bash \texttt{time} command and measured as the median real execution time of 5 runs.}
+        \label{fig:time}
+    \end{figure*}
+
+    
+    In order to answer hypothesis 2, it was decided to run analysis of the tool on more open source projects and gather metrics on the performance of the tool in terms of its performance in successfully identifying pointers can be refactored, how extensive the rejuvenation is in context of the whole program, and some general runtime characteristics. 
+    
+    It was decided that whilst gathering more projects to test, we would continue to focus on simple, single file libraries similar to TinyXML-2 in order to ease the cost of setting up each project to be used by the tool. 
     We used a list of single file, public-domain/open source libraries with minimal dependencies~\cite{Barrett2019} by acknowledged game and software developer Sean Barret~\footnote{\url{https://www.mobygames.com/developer/sheet/view/developerId,4966/}} to discover as many as possible candidate libraries.
-    This list also ensures that we only select projects which we are able to use and modify as well as including project from many areas of software engineering such as graphics and geometry to file parsers.
+    This list also ensures that we select projects from many areas of software engineering such as graphics and geometry to file parsers.
     This ensures that we run the tool across a wide variety of projects which will have different distributions and usages of memory allocations and pointer use, giving greater validity that our tool is able to generalise to any type of project.
     We filtered projects from the list that are C++ only, do not already use smart pointers and have at least one dynamic memory allocation and are not header-only.
     With this, we arrived at the following list of selected projects: 
@@ -572,52 +615,17 @@
     We measure the number of lines changed by using the output of the Linux \texttt{diff} command on the rejuvenated and original files. 
     We show the raw data of the gathered metrics in \autoref{table:data}.
     
-    \begin{table*}
-    \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
-    \hline
-                                   & \textbf{clipper} & \textbf{happyhttp} & \textbf{jzon} & \textbf{micropather} & \textbf{poisson} & \textbf{polypartition} & \textbf{tinyxml2} & \textbf{xatlas} \\ \hline \hline
-    \textbf{Runtime (ms)}          & 146.521          & 10.540             & 3.140                & 2.429         & 4.471            & 11.885                 & 16.055            & 105.212         \\ \hline
-    \textbf{Escaped Pointer}       & 94               & 22                 & 2                    & 39            & 7                & 46                     & 164               & 235             \\ \hline
-    \textbf{Non-Escaped Pointers}  & 132              & 16                 & 3                    & 34            & 3                & 22                     & 84                & 111             \\ \hline
-    \textbf{Lines of Code Changed}   & 205             & 27                 & 3                    & 57            & 6                & 31                     & 142               & 154             \\ \hline
-    \textbf{Total Lines of Code} & 5035             & 1273               & 1324                 & 1587          & 523              & 2270                   & 5366              & 10318           \\ \hline
-    \end{tabular}    
-    \caption{Data gathered from the rejuvenation of each of these projects. Total lines of code include both the implementation and header file of each project. Runtime measured in milliseconds as the median of five runs.}
-    \label{table:data}
-    \end{table*}
-    
-    \begin{figure*}
-        \centering
-        \includegraphics[scale=0.55]{images/pointers.png}
-        \caption{First graph shows the fraction of non-escaped, and therefore refactored, pointers for various projects. This varies from a minimum of 30\% up to a maximum of 60\%, with a mean of 42\%. The second graph shows the number of total pointers compared to the number of total lines in each project.}
-        \label{fig:ratio-pointer}
-    \end{figure*}
-    
-    \begin{figure*}
-        \centering
-        \includegraphics[scale=0.8]{images/lines.png}
-        \caption{Graph showing the fraction of modified lines by the tool compared to the total number of lines in each project, which is the combination of implementation and header files. This varies from a minimum of 0.22\% up to a maximum of 4.07\%, with a mean of 2.18\%.}
-        \label{fig:lines}
-    \end{figure*}
-
-    \begin{figure*}
-        \centering
-        \includegraphics[scale=0.55]{images/time.png}
-        \caption{Graphs of the tool runtime versus the total lines of code in each project and the total number of pointers that was analysed. The x axis for both graphs are plotted on a log scale. This is for clarity purposes in order to emphasise the two outliers consisting of the Clipper and Xatlas libraries. Time was measured in microsecond using the Bash \texttt{time} command and measuring the median real execution time of 5 runs.}
-        \label{fig:time}
-    \end{figure*}
-    
     \subsubsection{Results and Discussion}
     
     We see first of all in \autoref{fig:ratio-pointer} that our tool has consistent behaviour across the various projects, with 4 projects having between 30\% and 40\% of pointers identified for refactoring and 4 other projects having between 40\% and 60\% of pointers identified. 
-    The mean of 42\% is shows that we are able to identify a non-trivial amount of pointers, however it is unclear this is not higher because of a fault in the analysis or whether this is the typical performance for a conservative analysis.
+    The mean of 42\% shows that we are able to identify a non-trivial amount of pointers, however it is unclear this is not higher because of a fault in the analysis or whether this is the typical performance for a conservative analysis.
     The second graph in \autoref{fig:ratio-pointer} also shows how the amount of pointers in a project as the size of the project increases is close to linear. 
     This is a surprising result as we expected that different project in different areas of computer science of the same length would utilise vastly different amounts of memory allocations and use vastly different amounts of pointers.
     There seems to be no relationship between the 4 projects that had over 40\% of pointers identified and their lengths.
-    We therefore conclude that the length of a project that the tool has to rejuvenate has no impact on its performance. 
+    We therefore conclude that the size of a project that the tool has to rejuvenate has no impact on its performance. 
     
-    \autoref{fig:lines} the number of lines that were modified in the rejuvenated version of the project compared to the original. 
-    We can much more clearly see our previous expectation that some projects utilise pointer more and other less. 
+    \autoref{fig:lines} shows the number of lines that were modified in the rejuvenated version of the project compared to the original. 
+    We can much more clearly see our previous expectation that some projects utilise pointers more and other less. 
     The two projects with the lowest amount of modified lines, Jzon and the Poisson Disk Points Generator both only had ten or less pointers to analyse in total, with the Jzon library in particular only having three changed lines from the original. 
     Manual investigation of the Jzon library shows that even though it is a parsing library like TinyXML-2, the amount of code limited to memory allocations and pointers is very minimal. 
     We therefore again conclude that it seems like the tool is able to generalise well to different input programs.
@@ -627,10 +635,11 @@
     Therefore, we do not have a strict requirement on a fast processing time. 
     However, we can see that for the majority of projects, the processing remains under twenty milliseconds, even as the number of lines of code increases to over 5000. 
     We see a linear relationship in both of the graphs, except for the outliers of the Clipper and Xatlas libraries.
-    We were unable to establish why these libraries take an exceptionally longer time to process than the TinyXML-2 library which has the same amount of lines of code and analysed pointers as the Clipper library. 
+    We were unable to establish why these libraries take an exceptionally longer time to process, especially since the TinyXML-2 library has a similar amount of lines of code and analysed pointers as the Clipper library. 
+    This gives us confidence that the use of our tool would scale well onto even larger projects and therefore as useful as possible.
     
     To conclude, we believe we can partially confirm our second hypothesis.
-    We show that the tool generalises to a range of other libraries apart from the TinyXML-2 library selected in our case study and show that our analysis achieves similar results across these libraries. 
+    We show that the tool generalises to a range of other libraries apart from the TinyXML-2 library selected in our case study and show that our analysis achieves similar results across all these libraries. 
     However, what we cannot conclude is the accuracy of our tool in terms of the best case performance. 
     We were not able to find in the literature an estimate for the fraction of code that is used for memory management, nor are we able to confirm that our analysis achieves the best possible result out of any possible analysis that could be implemented.
     
@@ -642,32 +651,31 @@
     
     In this paper, we present the problem of \emph{manual memory management} in C++ and how it can create the opportunity for exploitable \emph{memory safety errors}. 
     We show how modern C++, that is the C++ 11 standard and newer, encourage the use of \emph{smart pointers} instead for memory management. 
-    Smart pointer create memory or resource handles which automatically get released when the handle exists the scope of a function or method. 
+    Smart pointers create resource handles which automatically get released when the handle exits the scope of a function or method. 
     This referred to as \emph{RAII} (\textit{Resource Acquisition is Initialisation}).
     We also highlight the eventual increasing need for automatic rejuvenation, the replacement of outdated coding patterns with newer, higher-level abstractions, of maintained projects as languages move and evolve much quicker than can be supported in enterprise environments.
-    The learning and application of new language requires a significant time investment that may not be able to be allocated. 
     
-    We then introduce our \emph{ptr-tidy} tool which was designed automatically rejuvenate code that does not use smart pointers, thereby solving our first problem.
+    We then introduce our \emph{ptr-tidy} tool in order to automatically rejuvenate code that does not use smart pointers, thereby solving our first problem.
     We show the design and implementation of the tool, which uses the Clang and LLVM libraries. 
-    The tool uses Clang and the Clang abstract syntax tree (AST) in order to obtain a rich and closely resembling representation of an input program.
+    The tool uses Clang and the Clang abstract syntax tree (AST) in order to obtain a rich and closely resembling representation of the input program.
     The tool then uses the equivalent representation of the input program in the lower-level LLVM intermediate representation (IR) in order to analyse which pointers are suitable to be \emph{unique pointers} or \emph{shared pointers}. 
     The AST and output of the analysis are then input to a rewriting component which creates and outputs our final rejuvenated program. 
-    This design is the solution to our second problem, as we believe this design is both generic, reusable and powerful enough to be used for a variety of same language refactoring or rejuvenation or different language transpiling.
+    This design is the solution to our second problem, as we believe this design is both generic, reusable and powerful enough to be used for a variety of rejuvenations.
     The design of the LLVM IR allows for powerful and efficient analyses to be performed, whilst its language agnostic nature allows a variety of possible parsing front-ends and output back-ends to be used, such as existing mature implementations available for C++ or Rust.
     
     Our evaluation showed that our tool can effectively be used to rejuvenate a set of simple open-source libraries, with a specific in depth analysis into the TinyXML-2 library that showed correct rejuvenations in object factory methods. 
     We observe that the tool is particularly effective at rejuvenating specific cases in programs where dynamic resources are created at the top of the function call stack and passed down the stack through return values. 
-    We also discovered that due to limitations in the specification of the C++ language, we are unable to rejuvenate function parameters statically, which meant the extend of our rejuvenation had limits.
+    We also discovered that due to limitations in the specification of the C++ language, we are unable to rejuvenate function parameters, which meant the extent of our rejuvenation had limits.
     The successful application of the tool across a varied set of open-source projects allowed us to conclude that the analysis and design of the tool were indeed suitable for refactoring generic C++ programs. 
     
     \subsection{Future Work}
     
     The escape analysis algorithm described by \citet{Choi1999} is used as the default escape analysis algorithm in the Oracle Java Virtual Machine implementation~\footnote{\url{https://docs.oracle.com/en/java/javase/16/vm/java-hotspot-virtual-machine-performance-enhancements.html}} and is widely cited~\cite{Wang2020, Stadler2014}.
-    Most importantly, the authors present an interprocedural analysis which we hypothesise could bring greater effectiveness to our tool and therefore we believe that it could lead to improved analysis performance compared to our implemented intraprocedural analysis. 
-    The similarity of Java and C++ as object oriented languages allowed for a direct application of the algorithm to C++.
+    Most importantly, the authors present an interprocedural analysis which we hypothesise could bring greater effectiveness to our tool as we believe that it could lead to improved analysis performance compared to our implemented intraprocedural analysis. 
+    The similarity of Java and C++ as object oriented languages should allow for a direct application of the algorithm in C++.
     
     Secondly, we mention in \autoref{subsec:case-study} that we are unable to enable optimising compiler invocations for generating the LLVM IR as it breaks our AST to IR correspondence. 
-    However, it remains to investigate whether these optimisations can be called dynamically during the running of our tool in order to gain information about conservative assumptions that we currently make. 
+    However, it remains to be investigated whether these optimisations can be called dynamically during the running of our tool in order to gain insight into conservative assumptions that we currently have to make. 
     
     In terms of the evaluation of the tool, we would like to extend it with more complex, multi-file projects and determine whether the translation unit barrier, where an analysis pass can only access the current implementation file, has an impact on analysis performance.
     An inter-modular analysis, similar to existing LTO optimisations in compilers~\footnote{\url{https://llvm.org/docs/LinkTimeOptimization.html}}, can then be evaluated whether it brings greater analysis performance. 
