@@ -91,7 +91,7 @@
     
     Our work closely relates to work done around the field of \emph{source code rejuvenation}, as defined by \citet{Pirkelbauer2010}. 
     We exactly aim to replace outdated coding patterns with newer, higher-level abstractions, as well as fitting the notion that this tool would be applied once to a codebase, rather than be a reoccurring task.
-    We will however use the terms rejuvenating and refactoring interchangeably in this paper as refactoring is a term that most developers are more familiar with.
+    We will however use the terms rejuvenating and refactoring interchangeably in this paper as refactoring is a term that most developers are more familiar with to convey code changes in order to improve the overall quality. 
     
     We believe research in this area is going to increase, as languages move and evolve much quicker than can be supported in enterprise environments~\cite{Overbey2009, Favre2005}, resulting in accumulating technical debt. 
     This is supported by the fact that other relevant work has been completed on this subject.
@@ -99,11 +99,11 @@
     First and foremost, we have evidence that this is a problem that exists in industry through a paper by \citet{Wright2013} which describes a tool used at Google for running such rejuvenations across a large C++ codebase. 
     \citet{Wright2013} show an example of running a simple rejuvenation of upgrading an API call.
     They use Clang for the parsing of code into a syntax tree and traverse the tree to identify and perform simple refactorings.
-    Their flexible design allows them to implement many different simple refactorings using the same tool, rather than the focus we have for a single specific refactoring goal.
+    Their flexible design allows them to implement many different simple refactorings using the same tool, rather than the focus we have for a single more complex refactoring goal.
 
     Secondly, there has been separate academic research into rejuvenation tools such as the work by \citet{Huck2016} and \citet{Kumar2012}.
     The former also uses the Clang driven approach like \citet{Wright2013}, while the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
-    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, the ongoing support for new C++ standards and non-standard features as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
+    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, the continuous support for new C++ standards and non-standard features as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
     
     There has also been industry interest in automatic rejuvenation tools \emph{between} languages rather than \emph{within} the same language. 
     This is done either to increase the use of a new, improved language by creating tools to aid transition, or in order to reuse existing compilers.
@@ -574,26 +574,25 @@
     
     \begin{figure*}
         \centering
-        \includegraphics[scale=0.55]{images/pointers.png}
+        \includegraphics[scale=0.45]{images/pointers.pdf}
         \caption{First graph shows the fraction of non-escaped, and therefore refactored, pointers for each project. This varies from a minimum of 30\% up to a maximum of 60\%, with a mean of 42\%. The second graph shows the number of total pointers compared to the number of total lines in each project.}
         \label{fig:ratio-pointer}
     \end{figure*}
     
     \begin{figure*}
         \centering
-        \includegraphics[scale=0.8]{images/lines.png}
+        \includegraphics[scale=0.8]{images/lines.pdf}
         \caption{Graph showing the fraction of modified lines by the tool compared to the total number of lines in each project, which is the combination of implementation and header files. This varies from a minimum of 0.22\% up to a maximum of 4.07\%, with a mean of 2.18\%.}
         \label{fig:lines}
     \end{figure*}
 
     \begin{figure*}
         \centering
-        \includegraphics[scale=0.55]{images/time.png}
+        \includegraphics[scale=0.475]{images/time.pdf}
         \caption{Graphs of the tool runtime versus the total lines of code in each project and the total number of pointers that was analysed. The x axis for both graphs are plotted on a log scale. This is for clarity purposes in order to emphasise the two outliers consisting of the Clipper and Xatlas libraries. Time was measured in microsecond using the Bash \texttt{time} command and measured as the median real execution time of 5 runs.}
         \label{fig:time}
     \end{figure*}
 
-    
     In order to answer hypothesis 2, it was decided to run analysis of the tool on more open source projects and gather metrics on the performance of the tool in terms of its performance in successfully identifying pointers can be refactored, how extensive the rejuvenation is in context of the whole program, and some general runtime characteristics. 
     
     It was decided that whilst gathering more projects to test, we would continue to focus on simple, single file libraries similar to TinyXML-2 in order to ease the cost of setting up each project to be used by the tool. 
