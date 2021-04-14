@@ -71,7 +71,7 @@
     
     We therefore propose a solution in the form of a tool, \emph{ptr-tidy}~\cite{Usov2021}, to analyse and automatically refactor programs to follow the recommended use of smart pointers where the analysis can determine that such a change is correct and does not change the runtime behaviour of the program. 
     
-    \begin{figure}
+    \begin{figure}[t]
         \centering
         \inputminted{c++}{code/leak.cpp}
         \includegraphics{images/arrow.pdf}
@@ -142,7 +142,7 @@
 
     The second type of smart pointer is a \emph{shared pointer} which is used for resources that may not necessarily have a single unique owner and so several owners \emph{share} ownership to the resource.
     Reference counting~\cite{Collins1960} is used to ensure that after the last owner loses access to the resource, it will finally be freed.
-    Shared pointers are suitable to be used in most situations and such reference counted pointers are used by default for all values in the Python and Swift languages~\footnote{\url{https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html}}
+    Shared pointers are suitable to be used in most situations and such reference counted pointers are used by default for all values in the Python~\footnote{\url{https://docs.python.org/3/c-api/refcounting.html}} and Swift languages~\footnote{\url{https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html}}.
     
     \subsection{Clang and LLVM}\label{subsec:clang-and-llvm}
     
@@ -508,16 +508,19 @@
         \label{fig:function-arguments}
     \end{figure}
     
-    Not a single function argument was refactored to use smart pointers, even though arguments are included in the analysis of the program, since the \texttt{VarDecl Matcher} also matches on arguments (\texttt{ParmVarDecl}) as it is a subclass~\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1ParmVarDecl.html}}.
-    Upon investigation, this remains largely an issue due to poor memory aliasing guarantees in the language~\cite{C++17}. 
-    Parameters are by default always not marked \texttt{noescape} and \texttt{noalias}~\footnote{\url{https://clang.llvm.org/docs/AttributeReference.html\#noalias}} in the generated LLVM IR, as can be seen in \autoref{fig:function-arguments}.
-    If we enable Clang compiler optimisations when generating the IR in \autoref{fig:function-arguments}, the compiler correctly identify that \texttt{p} cannot escape within the function, giving it a signature in the IR of 
+    Not a single function parameter was refactored to use smart pointers, even though parameters are included in the analysis of the program, since the \texttt{VarDecl Matcher} also matches on arguments (\texttt{ParmVarDecl}) as it is a subclass~\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1ParmVarDecl.html}}.
+    Upon investigation, this is largely an issue due memory coherence guarantees in the specification of the language~\cite[p.~66]{C++17}. 
+    Function pointer parameters are assumed by default to escape and to possibly be aliased (\textit{the memory could possibly be accessed through a different variable}).
+    Therefore by default no parameters will ever be identified by our analysis as non-escaping and will not be refactored.
+    We can see this in \autoref{fig:function-arguments}, where the variable \texttt{p} in the generated LLVM IR is not marked as \texttt{noescape} and \texttt{noalias}~\footnote{\url{https://clang.llvm.org/docs/AttributeReference.html\#noalias}}.
+    
+    If we enable Clang compiler optimisations when generating the IR for the C++ code in  \autoref{fig:function-arguments}, then the compiler can now correctly identify that \texttt{p} cannot escape within the function, giving it a signature in the IR of 
     \mintinline{llvm}{
     (i32* nocapture %p)
     }.
     However this would break the AST to IR correspondence that we established in \autoref{subsec:methodology-analysistarget} as variables that exist in the AST may find themselves optimised and removed from the IR or functions can that exist in the AST may find themselves inlined in the IR. 
-    Also, we still do not have non-aliasing guarantees so that we know that the object has not escaped before entering the function.
-    What is possible is that we can manually mark a variable in the code as being non-captured and non-aliased, such as:
+    Also, we still do not have non-aliasing guarantees for the variable \texttt{p} so that we know that the object has not escaped before entering the function.
+    It is possible to manually mark a variable in the code as being non-captured and non-aliased by adding parameter attributes such as:
     \begin{minted}{c++}
     void nonescapingFunc(__attribute__((noescape)) int * __restrict__ p) {
         *p += 100;
@@ -525,8 +528,10 @@
     \end{minted}
     This relies however on the Clang compiler specific implementation of the \texttt{noescape} attribute which does not exist in the GCC compiler, as well as the non-standard, compiler specific implementation of the \texttt{restrict} attribute. 
     Such code therefore is not portable and not standard conforming, making it likely unacceptable for most projects.
-    This last unlikely case is not currently correctly handled by the LLVM escape analysis to produce a more correct refactoring. 
-    The automatic generation of such front-end code however could be possible through the integration of Clang compiler optimisations and related research such as by \citet{Campos2015} for integration into our tool for better performance.
+    The LLVM escape analysis currently incorrectly identifies parameters with such attributes to still be escaping, as it is a very rarely occurring optimisation case.
+
+    % The automatic generation of such front-end code however could be possible through the integration of Clang compiler optimisations at the runtime of our tool and through related research such as by \citet{Campos2015} for integration into our tool for better performance.
+    
     The impact this has on our tool is that the extent of our analysis is not as complete as we would like it to be, however \autoref{lst:tinyxml-refactor-example-refactored} and \autoref{fig:rewriting-example2} show that we can still achieve desirable results through the analysis of local variables. 
     
     The tool is particularly effective at refactoring factory methods~\cite{Gamma1995} such as in \autoref{lst:tinyxml-refactor-example-refactored} and other cases where resources are created at the top rather than at the bottom of the function call stack and passed through return values.
@@ -543,11 +548,11 @@
     The size and complexity of the language makes it difficult to ensure that all edge cases are handled by the rewriting component, which can in future development be continuously improved.
     The fixes that need to be applied in order to compile the rejuvenated program can be done manually by the programmer, with all of the identified fixes in the TinyXML-2 library being a single line in length. 
     
-    However, We do not think this detracts from the value or usefulness of our tool.
-    Our tool provides fully rejuvenated and compilable programs without the need for any human input simpler input programs. 
+    However, we do not think this detracts from the value or usefulness of our tool.
+    Our tool provides fully rejuvenated and compilable programs without the need for any human input for simpler input programs. 
     These programs are modernised to use features such as smart pointers, which also bring stricter type checking.
-    For larger, more complex, older input programs some human input is currently still needed, however the work of our tool still allows the programmer to make their programs more modern and safer by performing the complex analysis and guiding the programmer towards the needed fixes through compiler errors.
-    This results in the rejuvenated output being obtained easier by removing the need for the programmer to manually understand the structure and style of the program and the often complex ownership relations between the various variables in the program. 
+    For larger, more complex and older input programs some human input is currently still needed, however the work of our tool allows the programmer to make their programs more modern and safer by performing the complex analysis and guiding the programmer towards the needed fixes through compiler errors.
+    This results in the rejuvenated output being obtained more easily by removing the need for the programmer to manually understand the structure and style of the program and the often complex ownership relations between the various variables in the program. 
     
     We therefore believe that from the analysis of our tool on the case study of the TinyXML-2 library, even with the identified failure cases, the success of the automated translation and identified success cases allow us to confirm our first hypothesis.
     
