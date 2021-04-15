@@ -103,7 +103,7 @@
 
     Secondly, there has been separate academic research into rejuvenation tools such as the work by \citet{Huck2016} and \citet{Kumar2012}.
     The former also uses the Clang driven approach like \citet{Wright2013}, while the latter uses a representation called IPR~\cite{Dos2011}, which is a general and efficient data structure for representing C++ programs.
-    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, the continuous support for new C++ standards and non-standard features as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
+    We have not evaluated IPR as a representation compared to the use of Clang, but we can  comment that whilst we appreciate the aim of the project to create a efficient and compiler-independent representation, the greater amount of documentation for Clang, the continuous support for new C++ standards and non-standard language extensions as well as being the choice of several other successful projects leads us to believe that it may be the more suitable and mature option for any such research.
     
     There has also been industry interest in automatic rejuvenation tools \emph{between} languages rather than \emph{within} the same language. 
     This is done either to increase the use of a new, improved language by creating tools to aid transition, or in order to reuse existing compilers.
@@ -135,8 +135,8 @@
     We can see how smart pointers and RAII work in our motivating example in  \autoref{lst:motivating-example}.
     Even though the \texttt{Circle} object is placed on the heap, the compiler can manage the smart pointer for us so that in all the cases where the lifetime of the object ends, the object will be released. 
 
-    The first type of smart pointer is a \emph{unique pointer}, which has only a single unique owner at any time and therefore are ideal for resources which may not be copied.
-    The resource managed by a unique pointer is released when execution of the program exits the scope of the function or method that the owner of the resource is contained in.
+    The first type of smart pointer is a \emph{unique pointer}, which has only a single unique owner at any time and therefore is ideal for resources which may not be copied.
+    The resource managed by a unique pointer is released when execution of the program exits the scope that the owner of the resource is contained in.
     The ownership of a unique pointer can be transferred between variables using \texttt{std::move} which \emph{moves} the ownership from one variable to another, making the original owner invalid.
     % TODO insert example diagram possibly
 
@@ -162,7 +162,7 @@
     Programs can then be optimised by applying portable and reusable transformations on the IR.
     
     Any improvement in back-end machine code generation, as well as any new or improved IR optimisations therefore benefit all of the language front-ends.
-    It can be seen that this allows for a very modular and powerful design, shown in \autoref{fig:llvm-design}.
+    It can be seen that this allows for a very modular and powerful design, as shown in \autoref{fig:llvm-design}.
     
     Clang~\cite{Lattner2008} is a LLVM language front-end for C, C++ and a variety of other extensions such as OpenGL.
     By using the LLVM infrastructure, it allows for faster and more efficient compilation of C++ compared to existing, older compilers such as the GNU Compiler Collection~\footnote{\url{https://gcc.gnu.org/}} (GCC)~\cite{Lattner2008}.
@@ -311,9 +311,8 @@
         \centering
         \begin{minted}{c++}
         char *test() {
-            char* a = new char[2];
-            a[0] = 'a';
-            printf("\%s", a);
+            char* a = new char('a');
+            printf("\%c", *a);
             return a;
         }
         \end{minted}
@@ -321,10 +320,9 @@
         \includegraphics{images/arrow.pdf}
         
         \begin{minted}{c++}
-        std::shared_ptr<char[]> test() {
-            std::shared_ptr<char[]> a = std::shared_ptr<char[]>(new char[2]);
-            a.get()[0] = 'a';
-            printf("\%s", a.get());
+        std::shared_ptr<char> test() {
+            std::shared_ptr<char> a = std::make_shared<char>('a');
+            printf("\%c", *a.get());
             return a;
         }
         \end{minted}
@@ -504,14 +502,14 @@
           ret void
         }
         \end{minted}
-        \caption{C++ and equivalent LLVM IR snippet showing how function arguments are not considered \texttt{noescape} or \texttt{noalias}}
+        \caption{C++ and equivalent LLVM IR snippet showing how the function argument \texttt{p} is not considered \texttt{noescape} or \texttt{noalias} by not having the correct attributes.}
         \label{fig:function-arguments}
     \end{figure}
     
-    Not a single function parameter was refactored to use smart pointers, even though parameters are included in the analysis of the program, since the \texttt{VarDecl Matcher} also matches on arguments (\texttt{ParmVarDecl}) as it is a subclass~\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1ParmVarDecl.html}}.
+    Not a single function parameter was identified to be non-escaping, as parameters are included in the analysis of the program, since the \texttt{VarDecl Matcher} also matches on arguments (\texttt{ParmVarDecl}) as it is a subclass~\footnote{\url{https://clang.llvm.org/doxygen/classclang_1_1ParmVarDecl.html}}.
     Upon investigation, this is largely an issue due memory coherence guarantees in the specification of the language~\cite[p.~66]{C++17}. 
     Function pointer parameters are assumed by default to escape and to possibly be aliased (\textit{the memory could possibly be accessed through a different variable}).
-    Therefore by default no parameters will ever be identified by our analysis as non-escaping and will not be refactored.
+    Therefore by default no parameters will ever be identified by our analysis as non-escaping.
     We can see this in \autoref{fig:function-arguments}, where the variable \texttt{p} in the generated LLVM IR is not marked as \texttt{noescape} and \texttt{noalias}~\footnote{\url{https://clang.llvm.org/docs/AttributeReference.html\#noalias}}.
     
     If we enable Clang compiler optimisations when generating the IR for the C++ code in  \autoref{fig:function-arguments}, then the compiler can now correctly identify that \texttt{p} cannot escape within the function, giving it a signature in the IR of 
